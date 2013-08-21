@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	// "fmt"
 	"net/http"
 	// "database/sql"
 	// _ "github.com/go-sql-driver/mysql"
@@ -34,36 +34,55 @@ func init() {
 	// }
 }
 
-type regParam struct{
-	Name string
-	Password string
-}
+const passwordSalt = "liwei"
 
 func register(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
 	checkMathod(r, "POST")
-	
+
+	// params
+	type regParam struct{
+		Username string
+		Password string
+	}
 	var param regParam
 	err := decodeRequestBody(r, &param)
 	checkError(err)
 
-	fmt.Fprintf(w, "%+v", param)
+	if param.Username == "" || param.Password == "" {
+		panic("err_param")
+	}
+
+	pwsha := sha224(param.Password + passwordSalt)
+	
+	// insert into db
+	db := opendb("account_db")
+	defer db.Close()
+
+	stmt, err := db.Prepare("INSERT user_account SET username=?,password=?")
+    checkError(err)
+
+    res, err := stmt.Exec(param.Username, pwsha)
+    if err != nil {
+		panic("err_account_exists")
+	}
+
+    id, err := res.LastInsertId()
+    checkError(err)
+
+
+    // reply
+    type Reply struct{
+		Userid int64
+	}
+	writeResponse(w, Reply{id})
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
 	checkMathod(r, "POST")
 	
-	r.ParseForm()
-
-	a, b := r.Form["username"], r.Form["password"]
-	if len(a) == 0 || len(b) == 0 {
-		fmt.Fprintf(w, "{error=\"param\"}")
-		return;
-	}
-	c, d := a[0], b[0]
-
-	fmt.Fprintf(w, "%v, %v", c, d)
+	
 }
 
 func regAuth() {
