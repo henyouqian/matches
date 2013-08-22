@@ -9,5 +9,5 @@ import (
 func main() {
 	regAuth()
 	log.Println("Server running")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":9999", nil))
 }

@@ -1,13 +1,14 @@
 package main
 
 import (
-	// "fmt"
+	"fmt"
 	"net/http"
 	"github.com/nu7hatch/gouuid"
+	"github.com/garyburd/redigo/redis"
+	"encoding/json"
 	// "database/sql"
 	// _ "github.com/go-sql-driver/mysql"
 	// "time"
-	// "encoding/json"
 )
 
 func init() {
@@ -61,19 +62,19 @@ func register(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	stmt, err := db.Prepare("INSERT user_account SET username=?,password=?")
-    checkError(err)
+	checkError(err)
 
-    res, err := stmt.Exec(param.Username, pwsha)
-    if err != nil {
+	res, err := stmt.Exec(param.Username, pwsha)
+	if err != nil {
 		panic("err_account_exists")
 	}
 
-    id, err := res.LastInsertId()
-    checkError(err)
+	id, err := res.LastInsertId()
+	checkError(err)
 
 
-    // reply
-    type Reply struct{
+	// reply
+	type Reply struct{
 		Userid int64
 	}
 	writeResponse(w, Reply{id})
@@ -104,22 +105,51 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := db.Query("SELECT id FROM user_account WHERE username=? AND password=?", param.Username, pwsha)
 	checkError(err)
-    if rows.Next() == false {
-    	panic("err_not_match")
-    }
-
-    // create session
-    uuid, err := uuid.NewV4()
-    checkError(err)
-
-    // reply
-    type Reply struct{
-		Userid int64
-		Uuid string
+	if rows.Next() == false {
+		panic("err_not_match")
 	}
-	reply := Reply{Uuid:uuid.String()}
-    err = rows.Scan(&reply.Userid)
-    writeResponse(w, reply)
+
+	var userid int64
+	err = rows.Scan(&userid)
+	checkError(err)
+
+	// create session
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	usertokenRaw, err := rc.Do("get", fmt.Sprintf("userid:usertoken/%d", userid))
+	checkError(err)
+	if usertokenRaw != nil {
+		usertoken, err := redis.String(usertokenRaw, err)
+		checkError(err)
+		rc.Do("del", fmt.Sprintf("usertoken:session/%s", usertoken))
+	}
+
+	uuid, err := uuid.NewV4()
+	checkError(err)
+	usertoken := uuid.String()
+
+	session := Session{userid, param.Username}
+	jsonSession, err := json.Marshal(session)
+	checkError(err)
+
+	_, err = rc.Do("setex", fmt.Sprintf("usertoken:session/%s", usertoken), 60*60, jsonSession)
+	checkError(err)
+	_, err = rc.Do("set", fmt.Sprintf("userid:usertoken/%d", userid), usertoken)
+	checkError(err)
+
+	// reply
+	type Reply struct{
+		Userid int64
+		Usertoken string
+	}
+	reply := Reply{userid, usertoken}
+	writeResponse(w, reply)
+}
+
+type Session struct {
+	Userid int64
+	Username string
 }
 
 func regAuth() {
