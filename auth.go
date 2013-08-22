@@ -6,10 +6,21 @@ import (
 	"github.com/nu7hatch/gouuid"
 	"github.com/garyburd/redigo/redis"
 	"encoding/json"
+	"errors"
 	// "database/sql"
 	// _ "github.com/go-sql-driver/mysql"
 	// "time"
 )
+
+const passwordSalt = "liwei"
+const sessionLifeSecond = 60 * 60
+
+
+type Session struct {
+	Userid int64
+	Username string
+}
+
 
 func init() {
 	// db, err := sql.Open("mysql", "root@/wh_db?parseTime=true")
@@ -36,7 +47,32 @@ func init() {
 	// }
 }
 
-const passwordSalt = "liwei"
+
+func findSession(r *http.Request) (*Session, error){
+	session := new(Session)
+
+	usertokenCookie, err := r.Cookie("usertoken")
+	if err != nil {
+		return session, errors.New("err_auth")
+	}
+	usertoken := usertokenCookie.Value
+
+	//redis
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	sessionBytes, err := redis.Bytes(rc.Do("get", fmt.Sprintf("usertoken:session/%s", usertoken)))
+	if err != nil {
+		err = errors.New("err_auth")
+		return session, errors.New("err_auth")
+	}
+
+	err = json.Unmarshal(sessionBytes, &session)
+	checkError(err)
+
+	return session, nil
+}
+
 
 func register(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
@@ -72,13 +108,13 @@ func register(w http.ResponseWriter, r *http.Request) {
 	id, err := res.LastInsertId()
 	checkError(err)
 
-
 	// reply
 	type Reply struct{
 		Userid int64
 	}
 	writeResponse(w, Reply{id})
 }
+
 
 func login(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
@@ -133,26 +169,35 @@ func login(w http.ResponseWriter, r *http.Request) {
 	jsonSession, err := json.Marshal(session)
 	checkError(err)
 
-	_, err = rc.Do("setex", fmt.Sprintf("usertoken:session/%s", usertoken), 60*60, jsonSession)
+	_, err = rc.Do("setex", fmt.Sprintf("usertoken:session/%s", usertoken), sessionLifeSecond, jsonSession)
 	checkError(err)
 	_, err = rc.Do("set", fmt.Sprintf("userid:usertoken/%d", userid), usertoken)
 	checkError(err)
 
+	// cookie
+	http.SetCookie(w, &http.Cookie{Name:"usertoken", Value:usertoken, MaxAge:sessionLifeSecond})
+
 	// reply
 	type Reply struct{
-		Userid int64
 		Usertoken string
 	}
-	reply := Reply{userid, usertoken}
+	reply := Reply{usertoken}
 	writeResponse(w, reply)
 }
 
-type Session struct {
-	Userid int64
-	Username string
+
+func test(w http.ResponseWriter, r *http.Request) {
+	defer handleError(w)
+	checkMathod(r, "POST")
+	
+	s, err := findSession(r)
+	checkError(err)
+
+	writeResponse(w, s)
 }
 
 func regAuth() {
 	http.HandleFunc("/login", login)
 	http.HandleFunc("/register", register)
+	http.HandleFunc("/test", test)
 }
