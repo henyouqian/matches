@@ -3,6 +3,7 @@ package main
 import (
 	// "fmt"
 	"net/http"
+	"github.com/nu7hatch/gouuid"
 	// "database/sql"
 	// _ "github.com/go-sql-driver/mysql"
 	// "time"
@@ -54,7 +55,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pwsha := sha224(param.Password + passwordSalt)
-	
+
 	// insert into db
 	db := opendb("account_db")
 	defer db.Close()
@@ -82,7 +83,43 @@ func login(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
 	checkMathod(r, "POST")
 	
-	
+	// params
+	type regParam struct{
+		Username string
+		Password string
+	}
+	var param regParam
+	err := decodeRequestBody(r, &param)
+	checkError(err)
+
+	if param.Username == "" || param.Password == "" {
+		panic("err_param")
+	}
+
+	pwsha := sha224(param.Password + passwordSalt)
+
+	// validate
+	db := opendb("account_db")
+	defer db.Close()
+
+	rows, err := db.Query("SELECT id FROM user_account WHERE username=? AND password=?", param.Username, pwsha)
+	checkError(err)
+    if rows.Next() == false {
+    	panic("err_not_match")
+    }
+
+    // create session
+    uuid, err := uuid.NewV4()
+    checkError(err)
+
+    // reply
+    type Reply struct{
+		Userid int64
+		Uuid string
+	}
+	reply := Reply{Uuid:uuid.String()}
+    err = rows.Scan(&reply.Userid)
+    writeResponse(w, reply)
 }
 
 func regAuth() {
