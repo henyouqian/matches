@@ -1,12 +1,12 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
-	"github.com/nu7hatch/gouuid"
-	"github.com/garyburd/redigo/redis"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/garyburd/redigo/redis"
+	"github.com/nu7hatch/gouuid"
+	"net/http"
 	"time"
 	// "database/sql"
 	// _ "github.com/go-sql-driver/mysql"
@@ -15,46 +15,62 @@ import (
 
 const passwordSalt = "liwei"
 const sessionLifeSecond = 60 * 60 * 24 * 7
-
+const sessionUpdateSecond = 60 * 60
 
 type Session struct {
-	Userid int64
+	Userid   int64
 	Username string
+	Born     time.Time
 }
-
 
 func init() {
-	type Session struct {
-		Userid int64
-		Username string
-		Time time.Time
+	type Match struct {
+		Begin time.Time
+		End   time.Time
 	}
-	// db, err := sql.Open("mysql", "root@/wh_db?parseTime=true")
-	// if err != nil {
-	// 	panic(err.Error()) // Just for example purpose. You should use proper error handling instead of panic
-	// }
-	// defer db.Close()
 
-	// // Prepare statement for reading data
-	// rows, err := db.Query("SELECT id, time FROM wagons")
-	// if err != nil {
-	// 	panic(err.Error()) // proper error handling instead of panic in your app
-	// }
-
-	// var id int
-	// var time time.Time
-
-	// for rows.Next() {
-	// 	err = rows.Scan(&id, &time) // WHERE number = 13
-	// 	if err != nil {
-	// 		panic(err.Error()) // proper error handling instead of panic in your app
-	// 	}
-	// 	fmt.Println(id, time)
-	// }
 }
 
+func newSession(w http.ResponseWriter, rc redis.Conn, userid int64, username string) (usertoken string, err error) {
+	usertoken = ""
+	usertokenRaw, err := rc.Do("get", fmt.Sprintf("userid:usertoken/%d", userid))
+	checkError(err)
+	if usertokenRaw != nil {
+		usertoken, err := redis.String(usertokenRaw, err)
+		if err != nil {
+			return usertoken, err
+		}
+		rc.Do("del", fmt.Sprintf("usertoken:session/%s", usertoken))
+	}
 
-func findSession(r *http.Request) (*Session, error){
+	uuid, err := uuid.NewV4()
+	if err != nil {
+		return usertoken, err
+	}
+	usertoken = uuid.String()
+
+	session := Session{userid, username, time.Now()}
+	jsonSession, err := json.Marshal(session)
+	if err != nil {
+		return usertoken, err
+	}
+
+	_, err = rc.Do("setex", fmt.Sprintf("usertoken:session/%s", usertoken), sessionLifeSecond, jsonSession)
+	if err != nil {
+		return usertoken, err
+	}
+	_, err = rc.Do("set", fmt.Sprintf("userid:usertoken/%d", userid), usertoken)
+	if err != nil {
+		return usertoken, err
+	}
+
+	// cookie
+	http.SetCookie(w, &http.Cookie{Name: "usertoken", Value: usertoken, MaxAge: sessionLifeSecond})
+
+	return usertoken, err
+}
+
+func findSession(w http.ResponseWriter, r *http.Request) (*Session, error) {
 	session := new(Session)
 
 	usertokenCookie, err := r.Cookie("usertoken")
@@ -76,16 +92,21 @@ func findSession(r *http.Request) (*Session, error){
 	err = json.Unmarshal(sessionBytes, &session)
 	checkError(err)
 
+	//update session
+	dt := time.Now().Sub(session.Born)
+	if dt > sessionUpdateSecond*time.Second {
+		newSession(w, rc, session.Userid, session.Username)
+	}
+
 	return session, nil
 }
-
 
 func register(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
 	checkMathod(r, "POST")
 
 	// params
-	type regParam struct{
+	type regParam struct {
 		Username string
 		Password string
 	}
@@ -115,19 +136,18 @@ func register(w http.ResponseWriter, r *http.Request) {
 	checkError(err)
 
 	// reply
-	type Reply struct{
+	type Reply struct {
 		Userid int64
 	}
 	writeResponse(w, Reply{id})
 }
 
-
 func login(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
 	checkMathod(r, "POST")
-	
+
 	// params
-	type regParam struct{
+	type regParam struct {
 		Username string
 		Password string
 	}
@@ -159,44 +179,22 @@ func login(w http.ResponseWriter, r *http.Request) {
 	rc := redisPool.Get()
 	defer rc.Close()
 
-	usertokenRaw, err := rc.Do("get", fmt.Sprintf("userid:usertoken/%d", userid))
+	usertoken, err := newSession(w, rc, userid, param.Username)
 	checkError(err)
-	if usertokenRaw != nil {
-		usertoken, err := redis.String(usertokenRaw, err)
-		checkError(err)
-		rc.Do("del", fmt.Sprintf("usertoken:session/%s", usertoken))
-	}
-
-	uuid, err := uuid.NewV4()
-	checkError(err)
-	usertoken := uuid.String()
-
-	session := Session{userid, param.Username}
-	jsonSession, err := json.Marshal(session)
-	checkError(err)
-
-	_, err = rc.Do("setex", fmt.Sprintf("usertoken:session/%s", usertoken), sessionLifeSecond, jsonSession)
-	checkError(err)
-	_, err = rc.Do("set", fmt.Sprintf("userid:usertoken/%d", userid), usertoken)
-	checkError(err)
-
-	// cookie
-	http.SetCookie(w, &http.Cookie{Name:"usertoken", Value:usertoken, MaxAge:sessionLifeSecond})
 
 	// reply
-	type Reply struct{
+	type Reply struct {
 		Usertoken string
 	}
 	reply := Reply{usertoken}
 	writeResponse(w, reply)
 }
 
-
 func test(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
 	checkMathod(r, "POST")
 
-	session, err := findSession(r)
+	session, err := findSession(w, r)
 	checkError(err)
 
 	writeResponse(w, session)

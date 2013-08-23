@@ -5,7 +5,6 @@ import (
 	"net/http"
 )
 
-
 func main() {
 	regAuth()
 	log.Println("Server running")

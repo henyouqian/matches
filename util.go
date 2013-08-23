@@ -1,14 +1,14 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
-	"encoding/json"
-	"database/sql"
-	_ "github.com/go-sql-driver/mysql"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"github.com/garyburd/redigo/redis"
+	_ "github.com/go-sql-driver/mysql"
+	"net/http"
 	"time"
 )
 
@@ -16,9 +16,9 @@ var redisPool *redis.Pool
 
 func init() {
 	redisPool = &redis.Pool{
-		MaxIdle: 5,
+		MaxIdle:     5,
 		IdleTimeout: 240 * time.Second,
-		Dial: func () (redis.Conn, error) {
+		Dial: func() (redis.Conn, error) {
 			c, err := redis.Dial("tcp", "localhost:6379")
 			if err != nil {
 				return nil, err
@@ -38,7 +38,7 @@ func handleError(w http.ResponseWriter) {
 			Error string
 		}
 		encoder.Encode(errorResponse{err})
-    }
+	}
 }
 
 func checkMathod(r *http.Request, method string) {
@@ -53,7 +53,7 @@ func checkError(err error) {
 	}
 }
 
-func decodeRequestBody(r *http.Request, v interface{}) error{
+func decodeRequestBody(r *http.Request, v interface{}) error {
 	decoder := json.NewDecoder(r.Body)
 	return decoder.Decode(v)
 }
