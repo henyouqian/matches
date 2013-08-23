@@ -7,13 +7,14 @@ import (
 	"github.com/garyburd/redigo/redis"
 	"encoding/json"
 	"errors"
+	"time"
 	// "database/sql"
 	// _ "github.com/go-sql-driver/mysql"
 	// "time"
 )
 
 const passwordSalt = "liwei"
-const sessionLifeSecond = 60 * 60
+const sessionLifeSecond = 60 * 60 * 24 * 7
 
 
 type Session struct {
@@ -23,6 +24,11 @@ type Session struct {
 
 
 func init() {
+	type Session struct {
+		Userid int64
+		Username string
+		Time time.Time
+	}
 	// db, err := sql.Open("mysql", "root@/wh_db?parseTime=true")
 	// if err != nil {
 	// 	panic(err.Error()) // Just for example purpose. You should use proper error handling instead of panic
@@ -189,11 +195,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 func test(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
 	checkMathod(r, "POST")
-	
-	s, err := findSession(r)
+
+	session, err := findSession(r)
 	checkError(err)
 
-	writeResponse(w, s)
+	writeResponse(w, session)
 }
 
 func regAuth() {
