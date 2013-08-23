@@ -65,7 +65,7 @@ func newSession(w http.ResponseWriter, rc redis.Conn, userid int64, username str
 	}
 
 	// cookie
-	http.SetCookie(w, &http.Cookie{Name: "usertoken", Value: usertoken, MaxAge: sessionLifeSecond})
+	http.SetCookie(w, &http.Cookie{Name: "usertoken", Value: usertoken, MaxAge: sessionLifeSecond, Path: "/"})
 
 	return usertoken, err
 }
@@ -201,7 +201,7 @@ func test(w http.ResponseWriter, r *http.Request) {
 }
 
 func regAuth() {
-	http.HandleFunc("/login", login)
-	http.HandleFunc("/register", register)
-	http.HandleFunc("/test", test)
+	http.HandleFunc("/authapi/login", login)
+	http.HandleFunc("/authapi/register", register)
+	http.HandleFunc("/authapi/test", test)
 }
