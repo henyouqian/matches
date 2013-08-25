@@ -1,13 +1,17 @@
 package main
 
 import (
-	"log"
+	"github.com/golang/glog"
 	"net/http"
+	"flag"
 )
 
 func main() {
+	flag.Parse()
+
 	regAuth()
 	regMatch()
-	log.Println("Server running")
-	log.Fatal(http.ListenAndServe(":9999", nil))
+	
+	glog.Info("Server running")
+	glog.Fatal(http.ListenAndServe(":9999", nil))
 }

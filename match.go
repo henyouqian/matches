@@ -2,25 +2,25 @@ package main
 
 import (
 	"net/http"
-	"fmt"
 )
 
-func createMatch(w http.ResponseWriter, r *http.Request) {
+func newMatch(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
 	checkMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	fmt.Println(err)
 	checkError(err)
+	checkAdmin(session)
 
-	if session.Username != "admin" {
-		panic("err_denied")
-	}
+	// db
+
 
 	// reply
 	writeResponse(w, "xxx")
 }
 
+
+
 func regMatch() {
-	http.HandleFunc("/matchapi/create", createMatch)
+	http.HandleFunc("/match/newmatch", newMatch)
 }

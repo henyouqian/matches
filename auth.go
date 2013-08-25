@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/garyburd/redigo/redis"
-	"github.com/nu7hatch/gouuid"
 	"net/http"
 	"time"
+
 	// "database/sql"
 	// _ "github.com/go-sql-driver/mysql"
 	// "time"
@@ -18,9 +18,10 @@ const sessionLifeSecond = 60 * 60 * 24 * 7
 const sessionUpdateSecond = 60 * 60
 
 type Session struct {
-	Userid   int64
+	Userid   uint64
 	Username string
 	Born     time.Time
+	Appid    uint32
 }
 
 func init() {
@@ -31,9 +32,9 @@ func init() {
 
 }
 
-func newSession(w http.ResponseWriter, rc redis.Conn, userid int64, username string) (usertoken string, err error) {
+func newSession(w http.ResponseWriter, rc redis.Conn, userid uint64, username string, appid uint32) (usertoken string, err error) {
 	usertoken = ""
-	usertokenRaw, err := rc.Do("get", fmt.Sprintf("userid:usertoken/%d", userid))
+	usertokenRaw, err := rc.Do("get", fmt.Sprintf("userid+appid:usertoken/%d+%d", userid, appid))
 	checkError(err)
 	if usertokenRaw != nil {
 		usertoken, err := redis.String(usertokenRaw, err)
@@ -43,13 +44,9 @@ func newSession(w http.ResponseWriter, rc redis.Conn, userid int64, username str
 		rc.Do("del", fmt.Sprintf("usertoken:session/%s", usertoken))
 	}
 
-	uuid, err := uuid.NewV4()
-	if err != nil {
-		return usertoken, err
-	}
-	usertoken = uuid.String()
+	usertoken = genUUID()
 
-	session := Session{userid, username, time.Now()}
+	session := Session{userid, username, time.Now(), appid}
 	jsonSession, err := json.Marshal(session)
 	if err != nil {
 		return usertoken, err
@@ -59,7 +56,7 @@ func newSession(w http.ResponseWriter, rc redis.Conn, userid int64, username str
 	if err != nil {
 		return usertoken, err
 	}
-	_, err = rc.Do("set", fmt.Sprintf("userid:usertoken/%d", userid), usertoken)
+	_, err = rc.Do("set", fmt.Sprintf("userid+appid:usertoken/%d+%d", userid, appid), usertoken)
 	if err != nil {
 		return usertoken, err
 	}
@@ -95,7 +92,7 @@ func findSession(w http.ResponseWriter, r *http.Request) (*Session, error) {
 	//update session
 	dt := time.Now().Sub(session.Born)
 	if dt > sessionUpdateSecond*time.Second {
-		newSession(w, rc, session.Userid, session.Username)
+		newSession(w, rc, session.Userid, session.Username, session.Appid)
 	}
 
 	return session, nil
@@ -105,29 +102,29 @@ func register(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
 	checkMathod(r, "POST")
 
-	// params
-	type regParam struct {
+	// input
+	type Input struct {
 		Username string
 		Password string
 	}
-	var param regParam
-	err := decodeRequestBody(r, &param)
+	var input Input
+	err := decodeRequestBody(r, &input)
 	checkError(err)
 
-	if param.Username == "" || param.Password == "" {
-		panic("err_param")
+	if input.Username == "" || input.Password == "" {
+		panic("err_input")
 	}
 
-	pwsha := sha224(param.Password + passwordSalt)
+	pwsha := sha224(input.Password + passwordSalt)
 
 	// insert into db
-	db := opendb("account_db")
+	db := opendb("auth_db")
 	defer db.Close()
 
-	stmt, err := db.Prepare("INSERT user_account SET username=?,password=?")
+	stmt, err := db.Prepare("INSERT INTO user_accounts (username, password) VALUES (?, ?)")
 	checkError(err)
 
-	res, err := stmt.Exec(param.Username, pwsha)
+	res, err := stmt.Exec(input.Username, pwsha)
 	if err != nil {
 		panic("err_account_exists")
 	}
@@ -146,47 +143,103 @@ func login(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
 	checkMathod(r, "POST")
 
-	// params
-	type regParam struct {
-		Username string
-		Password string
+	// input
+	type Input struct {
+		Username  string
+		Password  string
+		Appsecret string
 	}
-	var param regParam
-	err := decodeRequestBody(r, &param)
+	var input Input
+	err := decodeRequestBody(r, &input)
 	checkError(err)
 
-	if param.Username == "" || param.Password == "" {
-		panic("err_param")
+	if input.Username == "" || input.Password == "" {
+		panic("err_input")
 	}
 
-	pwsha := sha224(param.Password + passwordSalt)
+	pwsha := sha224(input.Password + passwordSalt)
 
-	// validate
-	db := opendb("account_db")
+	// get userid
+	db := opendb("auth_db")
 	defer db.Close()
 
-	rows, err := db.Query("SELECT id FROM user_account WHERE username=? AND password=?", param.Username, pwsha)
+	rows, err := db.Query("SELECT id FROM user_accounts WHERE username=? AND password=?", input.Username, pwsha)
 	checkError(err)
 	if rows.Next() == false {
 		panic("err_not_match")
 	}
-
-	var userid int64
+	var userid uint64
 	err = rows.Scan(&userid)
 	checkError(err)
 
-	// create session
+	// get appid
+	appid := uint32(0)
+	if input.Appsecret != "" {
+		rows, err = db.Query("SELECT id FROM apps WHERE secret=?", input.Appsecret)
+		checkError(err)
+		if rows.Next() == false {
+			panic("err_app_secret")
+		}
+		err = rows.Scan(&appid)
+		checkError(err)
+	}
+
+	// new session
 	rc := redisPool.Get()
 	defer rc.Close()
 
-	usertoken, err := newSession(w, rc, userid, param.Username)
+	usertoken, err := newSession(w, rc, userid, input.Username, appid)
 	checkError(err)
 
 	// reply
 	type Reply struct {
 		Usertoken string
+		Appid     uint32
 	}
-	reply := Reply{usertoken}
+	reply := Reply{usertoken, appid}
+	writeResponse(w, reply)
+}
+
+func newApp(w http.ResponseWriter, r *http.Request) {
+	defer handleError(w)
+	checkMathod(r, "POST")
+
+	session, err := findSession(w, r)
+	checkError(err)
+	checkAdmin(session)
+
+	// input
+	type Input struct {
+		Name string
+	}
+	var input Input
+	err = decodeRequestBody(r, &input)
+	checkError(err)
+
+	if input.Name == "" {
+		panic("err_input")
+	}
+
+	// db
+	secret := genUUID()
+
+	db := opendb("auth_db")
+	defer db.Close()
+
+	stmt, err := db.Prepare("INSERT INTO apps (name, secret) VALUES (?, ?)")
+	checkError(err)
+
+	_, err = stmt.Exec(input.Name, secret)
+	if err != nil {
+		panic("err_name_exists")
+	}
+
+	// reply
+	type Reply struct {
+		Name string
+		Secret string
+	}
+	reply := Reply{input.Name, secret}
 	writeResponse(w, reply)
 }
 
@@ -201,7 +254,8 @@ func test(w http.ResponseWriter, r *http.Request) {
 }
 
 func regAuth() {
-	http.HandleFunc("/authapi/login", login)
-	http.HandleFunc("/authapi/register", register)
-	http.HandleFunc("/authapi/test", test)
+	http.HandleFunc("/auth/login", login)
+	http.HandleFunc("/auth/register", register)
+	http.HandleFunc("/auth/newapp", newApp)
+	http.HandleFunc("/auth/test", test)
 }

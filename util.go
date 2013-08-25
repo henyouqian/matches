@@ -10,6 +10,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"net/http"
 	"time"
+	"github.com/nu7hatch/gouuid"
 )
 
 var redisPool *redis.Pool
@@ -63,12 +64,9 @@ func writeResponse(w http.ResponseWriter, v interface{}) {
 	encoder.Encode(v)
 }
 
-const (
-	account_db = "account_db"
-)
 
 func opendb(dbname string) *sql.DB {
-	db, err := sql.Open("mysql", fmt.Sprintf("root@/%s?parseTime=true", account_db))
+	db, err := sql.Open("mysql", fmt.Sprintf("root@/%s?parseTime=true", dbname))
 	checkError(err)
 	return db
 }
@@ -77,4 +75,16 @@ func sha224(s string) string {
 	hasher := sha256.New224()
 	hasher.Write([]byte(s))
 	return base64.URLEncoding.EncodeToString(hasher.Sum(nil))
+}
+
+func checkAdmin(session *Session) {
+	if session.Username != "admin" {
+		panic("err_denied")
+	}
+}
+
+func genUUID() string {
+	uuid, err := uuid.NewV4()
+	checkError(err)
+	return base64.URLEncoding.EncodeToString(uuid[:])
 }
