@@ -7,10 +7,6 @@ import (
 	"github.com/garyburd/redigo/redis"
 	"net/http"
 	"time"
-
-	// "database/sql"
-	// _ "github.com/go-sql-driver/mysql"
-	// "time"
 )
 
 const passwordSalt = "liwei"
@@ -25,17 +21,13 @@ type Session struct {
 }
 
 func init() {
-	type Match struct {
-		Begin time.Time
-		End   time.Time
-	}
-
+	
 }
 
 func newSession(w http.ResponseWriter, rc redis.Conn, userid uint64, username string, appid uint32) (usertoken string, err error) {
 	usertoken = ""
 	usertokenRaw, err := rc.Do("get", fmt.Sprintf("userid+appid:usertoken/%d+%d", userid, appid))
-	checkError(err)
+	checkError(err, "")
 	if usertokenRaw != nil {
 		usertoken, err := redis.String(usertokenRaw, err)
 		if err != nil {
@@ -87,7 +79,7 @@ func findSession(w http.ResponseWriter, r *http.Request) (*Session, error) {
 	}
 
 	err = json.Unmarshal(sessionBytes, &session)
-	checkError(err)
+	checkError(err, "")
 
 	//update session
 	dt := time.Now().Sub(session.Born)
@@ -108,11 +100,10 @@ func register(w http.ResponseWriter, r *http.Request) {
 		Password string
 	}
 	var input Input
-	err := decodeRequestBody(r, &input)
-	checkError(err)
+	decodeRequestBody(r, &input)
 
 	if input.Username == "" || input.Password == "" {
-		panic("err_input")
+		sendError("err_input", "")
 	}
 
 	pwsha := sha224(input.Password + passwordSalt)
@@ -122,15 +113,13 @@ func register(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	stmt, err := db.Prepare("INSERT INTO user_accounts (username, password) VALUES (?, ?)")
-	checkError(err)
+	checkError(err, "")
 
 	res, err := stmt.Exec(input.Username, pwsha)
-	if err != nil {
-		panic("err_account_exists")
-	}
+	checkError(err, "err_account_exists")
 
 	id, err := res.LastInsertId()
-	checkError(err)
+	checkError(err, "")
 
 	// reply
 	type Reply struct {
@@ -150,11 +139,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 		Appsecret string
 	}
 	var input Input
-	err := decodeRequestBody(r, &input)
-	checkError(err)
+	decodeRequestBody(r, &input)
 
 	if input.Username == "" || input.Password == "" {
-		panic("err_input")
+		sendError("err_input", "")
 	}
 
 	pwsha := sha224(input.Password + passwordSalt)
@@ -164,24 +152,24 @@ func login(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	rows, err := db.Query("SELECT id FROM user_accounts WHERE username=? AND password=?", input.Username, pwsha)
-	checkError(err)
+	checkError(err, "")
 	if rows.Next() == false {
-		panic("err_not_match")
+		sendError("err_not_match", "")
 	}
 	var userid uint64
 	err = rows.Scan(&userid)
-	checkError(err)
+	checkError(err, "")
 
 	// get appid
 	appid := uint32(0)
 	if input.Appsecret != "" {
 		rows, err = db.Query("SELECT id FROM apps WHERE secret=?", input.Appsecret)
-		checkError(err)
+		checkError(err, "")
 		if rows.Next() == false {
-			panic("err_app_secret")
+			sendError("err_app_secret", "")
 		}
 		err = rows.Scan(&appid)
-		checkError(err)
+		checkError(err, "")
 	}
 
 	// new session
@@ -189,7 +177,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	defer rc.Close()
 
 	usertoken, err := newSession(w, rc, userid, input.Username, appid)
-	checkError(err)
+	checkError(err, "")
 
 	// reply
 	type Reply struct {
@@ -205,7 +193,7 @@ func newApp(w http.ResponseWriter, r *http.Request) {
 	checkMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	checkError(err)
+	checkError(err, "")
 	checkAdmin(session)
 
 	// input
@@ -213,11 +201,10 @@ func newApp(w http.ResponseWriter, r *http.Request) {
 		Name string
 	}
 	var input Input
-	err = decodeRequestBody(r, &input)
-	checkError(err)
+	decodeRequestBody(r, &input)
 
 	if input.Name == "" {
-		panic("err_input")
+		sendError("err_input", "input.Name empty")
 	}
 
 	// db
@@ -227,12 +214,10 @@ func newApp(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	stmt, err := db.Prepare("INSERT INTO apps (name, secret) VALUES (?, ?)")
-	checkError(err)
+	checkError(err, "")
 
 	_, err = stmt.Exec(input.Name, secret)
-	if err != nil {
-		panic("err_name_exists")
-	}
+	checkError(err, "err_name_exists")
 
 	// reply
 	type Reply struct {
@@ -248,7 +233,7 @@ func test(w http.ResponseWriter, r *http.Request) {
 	checkMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	checkError(err)
+	checkError(err, "")
 
 	writeResponse(w, session)
 }
