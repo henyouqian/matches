@@ -4,6 +4,7 @@ import (
 	"github.com/golang/glog"
 	"net/http"
 	"flag"
+	"runtime"
 )
 
 func main() {
@@ -11,7 +12,10 @@ func main() {
 
 	regAuth()
 	regMatch()
+	regBench()
+
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	
-	glog.Info("Server running")
+	glog.Infof("Server running: cpu=%d", runtime.NumCPU())
 	glog.Fatal(http.ListenAndServe(":9999", nil))
 }
