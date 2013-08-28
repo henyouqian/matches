@@ -53,7 +53,6 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 }
 
 
-
 func regMatch() {
 	http.HandleFunc("/match/newmatch", newMatch)
 }
