@@ -6,13 +6,14 @@ import (
 	// "github.com/golang/glog"
 )
 
-// type Match struct {
-// 	Appid uint32
-// 	Gameid uint32
-// 	Begin time.Time
-// 	End   time.Time
-// 	Order string
-// }
+type Match struct {
+	Id uint32
+	Name string
+	Gameid uint32
+	Begin uint64
+	End uint64
+	Sort uint8
+}
 
 func newMatch(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
@@ -84,29 +85,33 @@ func listOpening(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
 	checkMathod(r, "POST")
 
-	_, err := findSession(w, r)
+	session, err := findSession(w, r)
 	checkError(err, "")
 
-	//db
+	//
+	now := time.Now().Unix()
+
+	// db
 	db := opendb("match_db")
 	defer db.Close()
 
-	rows, err := db.Query("SELECT id FROM matches")
+	rows, err := db.Query("SELECT id, name, gameid, sort, begin, end FROM matches WHERE begin < ? AND end > ? AND appid = ?", now, now, session.Appid)
 	checkError(err, "")
 	
-	ids := make([]uint32, 0, 16)
-	var id uint32
+	matches := make([]Match, 0, 16)
+	var match Match
 	for rows.Next() {
-		err = rows.Scan(&id)
+		err = rows.Scan(&match.Id, &match.Name, &match.Gameid, &match.Sort, &match.Begin, &match.End)
 		checkError(err, "")
-		ids = append(ids, id)
+		matches = append(matches, match)
 	}
 
 	type Reply struct {
-		Ids []uint32
+		Matches []Match
 	}
-	reply := Reply{ids}
-
+	reply := Reply{
+		matches,
+	}
 	writeResponse(w, reply)
 }
 
@@ -117,7 +122,31 @@ func listComming(w http.ResponseWriter, r *http.Request) {
 	session, err := findSession(w, r)
 	checkError(err, "")
 
-	writeResponse(w, session)
+	//
+	now := time.Now().Unix()
+
+	// db
+	db := opendb("match_db")
+	defer db.Close()
+
+	rows, err := db.Query("SELECT id, name, gameid, sort, begin, end FROM matches WHERE begin > ? AND appid = ?", now, session.Appid)
+	checkError(err, "")
+	
+	matches := make([]Match, 0, 16)
+	var match Match
+	for rows.Next() {
+		err = rows.Scan(&match.Id, &match.Name, &match.Gameid, &match.Sort, &match.Begin, &match.End)
+		checkError(err, "")
+		matches = append(matches, match)
+	}
+
+	type Reply struct {
+		Matches []Match
+	}
+	reply := Reply{
+		matches,
+	}
+	writeResponse(w, reply)
 }
 
 func listClosed(w http.ResponseWriter, r *http.Request) {
@@ -127,7 +156,31 @@ func listClosed(w http.ResponseWriter, r *http.Request) {
 	session, err := findSession(w, r)
 	checkError(err, "")
 
-	writeResponse(w, session)
+	//
+	now := time.Now().Unix()
+
+	// db
+	db := opendb("match_db")
+	defer db.Close()
+
+	rows, err := db.Query("SELECT id, name, gameid, sort, begin, end FROM matches WHERE end < ? AND appid = ?", now, session.Appid)
+	checkError(err, "")
+	
+	matches := make([]Match, 0, 16)
+	var match Match
+	for rows.Next() {
+		err = rows.Scan(&match.Id, &match.Name, &match.Gameid, &match.Sort, &match.Begin, &match.End)
+		checkError(err, "")
+		matches = append(matches, match)
+	}
+
+	type Reply struct {
+		Matches []Match
+	}
+	reply := Reply{
+		matches,
+	}
+	writeResponse(w, reply)
 }
 
 
