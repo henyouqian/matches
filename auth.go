@@ -208,14 +208,13 @@ func newApp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// db
-	secret := genUUID()
-
 	db := opendb("auth_db")
 	defer db.Close()
 
 	stmt, err := db.Prepare("INSERT INTO apps (name, secret) VALUES (?, ?)")
 	checkError(err, "")
 
+	secret := genUUID()
 	_, err = stmt.Exec(input.Name, secret)
 	checkError(err, "err_name_exists")
 

@@ -17,7 +17,7 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 	input := Input{Username:"aa", Password:"aa"}
 
 	if input.Username == "" || input.Password == "" {
-		panic("err_input")
+		sendError("err_input", "")
 	}
 
 	pwsha := sha224(input.Password + passwordSalt)
@@ -27,24 +27,24 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	rows, err := db.Query("SELECT id FROM user_accounts WHERE username=? AND password=?", input.Username, pwsha)
-	checkError(err)
+	checkError(err, "")
 	if rows.Next() == false {
-		panic("err_not_match")
+		sendError("err_not_match", "")
 	}
 	var userid uint64
 	err = rows.Scan(&userid)
-	checkError(err)
+	checkError(err, "")
 
 	// get appid
 	appid := uint32(0)
 	if input.Appsecret != "" {
 		rows, err = db.Query("SELECT id FROM apps WHERE secret=?", input.Appsecret)
-		checkError(err)
+		checkError(err, "")
 		if rows.Next() == false {
-			panic("err_app_secret")
+			sendError("err_app_secret", "")
 		}
 		err = rows.Scan(&appid)
-		checkError(err)
+		checkError(err, "")
 	}
 
 	// new session
@@ -52,7 +52,7 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 	defer rc.Close()
 
 	usertoken, err := newSession(w, rc, userid, input.Username, appid)
-	checkError(err)
+	checkError(err, "")
 
 	// reply
 	type Reply struct {
