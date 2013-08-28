@@ -4,7 +4,6 @@ import (
 	"github.com/golang/glog"
 	"net/http"
 	"flag"
-	"fmt"
 )
 
 func staticFile(w http.ResponseWriter, r *http.Request) {
