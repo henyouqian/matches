@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"time"
 	"github.com/nu7hatch/gouuid"
+	"runtime"
+	"github.com/golang/glog"
 )
 
 var redisPool *redis.Pool
@@ -45,6 +47,10 @@ func handleError(w http.ResponseWriter) {
 			err = r.(Err)
 		default:
 			err = Err{"err_internal", fmt.Sprintf("%v", r)}
+
+			buf := make([]byte, 1024)
+			runtime.Stack(buf, false)
+			glog.Errorf("%v\n%s\n", r, buf)
 		}
 
 		encoder.Encode(&err)
