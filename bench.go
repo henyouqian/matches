@@ -23,27 +23,16 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 	pwsha := sha224(input.Password + passwordSalt)
 
 	// get userid
-	db := opendb("auth_db")
-	defer db.Close()
-
-	rows, err := db.Query("SELECT id FROM user_accounts WHERE username=? AND password=?", input.Username, pwsha)
-	checkError(err, "")
-	if rows.Next() == false {
-		sendError("err_not_match", "")
-	}
+	row := authDB.QueryRow("SELECT id FROM user_accounts WHERE username=? AND password=?", input.Username, pwsha)
 	var userid uint64
-	err = rows.Scan(&userid)
+	err := row.Scan(&userid)
 	checkError(err, "")
 
 	// get appid
 	appid := uint32(0)
 	if input.Appsecret != "" {
-		rows, err = db.Query("SELECT id FROM apps WHERE secret=?", input.Appsecret)
-		checkError(err, "")
-		if rows.Next() == false {
-			sendError("err_app_secret", "")
-		}
-		err = rows.Scan(&appid)
+		row = authDB.QueryRow("SELECT id FROM apps WHERE secret=?", input.Appsecret)
+		err = row.Scan(&appid)
 		checkError(err, "")
 	}
 
@@ -70,10 +59,24 @@ func benchHello(w http.ResponseWriter, r *http.Request) {
 
 func testdb(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
-	rows, err := auth_db.Query("SELECT id FROM user_accounts")
+
+	rows, err := authDB.Query("SELECT id FROM user_accounts")
 	checkError(err, "")
 
 	ids := make([]uint32, 0, 50)
+	for rows.Next() {
+		var userid uint32
+		err = rows.Scan(&userid)
+		checkError(err, "")
+		ids = append(ids, userid)
+	}
+
+	rows, err = authDB.Query("SELECT id FROM user_accounts")
+	checkError(err, "")
+
+	// rows, err = auth_db.Query("SELECT id FROM user_accounts")
+	// checkError(err, "")
+
 	for rows.Next() {
 		var userid uint32
 		err = rows.Scan(&userid)

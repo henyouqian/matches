@@ -109,10 +109,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 	pwsha := sha224(input.Password + passwordSalt)
 
 	// insert into db
-	db := opendb("auth_db")
-	defer db.Close()
-
-	stmt, err := db.Prepare("INSERT INTO user_accounts (username, password) VALUES (?, ?)")
+	stmt, err := authDB.Prepare("INSERT INTO user_accounts (username, password) VALUES (?, ?)")
 	checkError(err, "")
 
 	res, err := stmt.Exec(input.Username, pwsha)
@@ -148,28 +145,17 @@ func login(w http.ResponseWriter, r *http.Request) {
 	pwsha := sha224(input.Password + passwordSalt)
 
 	// get userid
-	db := opendb("auth_db")
-	defer db.Close()
-
-	rows, err := db.Query("SELECT id FROM user_accounts WHERE username=? AND password=?", input.Username, pwsha)
-	checkError(err, "")
-	if rows.Next() == false {
-		sendError("err_not_match", "")
-	}
+	row := authDB.QueryRow("SELECT id FROM user_accounts WHERE username=? AND password=?", input.Username, pwsha)
 	var userid uint64
-	err = rows.Scan(&userid)
-	checkError(err, "")
+	err := row.Scan(&userid)
+	checkError(err, "err_not_match")
 
 	// get appid
 	appid := uint32(0)
 	if input.Appsecret != "" {
-		rows, err = db.Query("SELECT id FROM apps WHERE secret=?", input.Appsecret)
-		checkError(err, "")
-		if rows.Next() == false {
-			sendError("err_app_secret", "")
-		}
-		err = rows.Scan(&appid)
-		checkError(err, "")
+		row = authDB.QueryRow("SELECT id FROM apps WHERE secret=?", input.Appsecret)
+		err = row.Scan(&appid)
+		checkError(err, "err_app_secret")
 	}
 
 	// new session
@@ -208,10 +194,7 @@ func newApp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// db
-	db := opendb("auth_db")
-	defer db.Close()
-
-	stmt, err := db.Prepare("INSERT INTO apps (name, secret) VALUES (?, ?)")
+	stmt, err := authDB.Prepare("INSERT INTO apps (name, secret) VALUES (?, ?)")
 	checkError(err, "")
 
 	secret := genUUID()

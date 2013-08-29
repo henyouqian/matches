@@ -16,11 +16,13 @@ import (
 )
 
 var redisPool *redis.Pool
-var auth_db *sql.DB
+var authDB *sql.DB
+var matchDB *sql.DB
 
 func init() {
 	redisPool = &redis.Pool{
 		MaxIdle:     5,
+		MaxActive:   0,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
 			c, err := redis.Dial("tcp", "localhost:6379")
@@ -31,9 +33,11 @@ func init() {
 		},
 	}
 
-	auth_db = opendb("auth_db")
-	auth_db.SetMaxIdleConns(MAX_DB_CONNECTION)
-	fmt.Println(MAX_DB_CONNECTION)
+	authDB = opendb("auth_db")
+	authDB.SetMaxIdleConns(10)
+
+	matchDB = opendb("match_db")
+	matchDB.SetMaxIdleConns(10)
 }
 
 type Err struct {
@@ -53,10 +57,14 @@ func handleError(w http.ResponseWriter) {
 		default:
 			err = Err{"err_internal", fmt.Sprintf("%v", r)}
 
-			buf := make([]byte, 1024)
-			runtime.Stack(buf, false)
-			glog.Errorf("%v\n%s\n", r, buf)
+			// buf := make([]byte, 1024)
+			// runtime.Stack(buf, false)
+			// glog.Errorf("%v\n%s\n", r, buf)
 		}
+
+		buf := make([]byte, 1024)
+		runtime.Stack(buf, false)
+		glog.Errorf("%v\n%s\n", r, buf)
 
 		encoder.Encode(&err)
 	}
