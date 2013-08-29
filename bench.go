@@ -68,8 +68,24 @@ func benchHello(w http.ResponseWriter, r *http.Request) {
 	writeResponse(w, "hello")
 }
 
+func testdb(w http.ResponseWriter, r *http.Request) {
+	defer handleError(w)
+	rows, err := auth_db.Query("SELECT id FROM user_accounts")
+	checkError(err, "")
+
+	ids := make([]uint32, 0, 50)
+	for rows.Next() {
+		var userid uint32
+		err = rows.Scan(&userid)
+		checkError(err, "")
+		ids = append(ids, userid)
+	}
+
+	writeResponse(w, ids)
+}
 
 func regBench() {
 	http.HandleFunc("/bench/login", benchLogin)
 	http.HandleFunc("/bench/hello", benchHello)
+	http.HandleFunc("/bench/testdb", testdb)
 }

@@ -16,6 +16,7 @@ import (
 )
 
 var redisPool *redis.Pool
+var auth_db *sql.DB
 
 func init() {
 	redisPool = &redis.Pool{
@@ -29,6 +30,10 @@ func init() {
 			return c, err
 		},
 	}
+
+	auth_db = opendb("auth_db")
+	auth_db.SetMaxIdleConns(MAX_DB_CONNECTION)
+	fmt.Println(MAX_DB_CONNECTION)
 }
 
 type Err struct {
