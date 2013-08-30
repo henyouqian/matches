@@ -21,7 +21,7 @@ var matchDB *sql.DB
 
 func init() {
 	redisPool = &redis.Pool{
-		MaxIdle:     5,
+		MaxIdle:     20,
 		MaxActive:   0,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
