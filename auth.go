@@ -217,7 +217,18 @@ func test(w http.ResponseWriter, r *http.Request) {
 	session, err := findSession(w, r)
 	checkError(err, "")
 
-	writeResponse(w, session)
+	//
+	usertokenCookie, err := r.Cookie("usertoken")
+	usertoken := usertokenCookie.Value
+
+	//
+	type Reply struct {
+		Session *Session
+		UserToken string
+	}
+	reply := Reply{session, usertoken}
+
+	writeResponse(w, reply)
 }
 
 func regAuth() {

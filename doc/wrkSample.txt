@@ -1,8 +1,12 @@
 * login first
 wrk -c 100 -d 6s -t 10
-wrk -c 100 -d 6s -t 10 --method "POST" --header "Cookie: usertoken=vx_aqiibT5J3mmzwvvn0NQ=="  --body
+wrk -c 100 -d 6s -t 10 --method "POST" --header "Cookie: usertoken=jmArnH2ZS3tQugcNHnq2cA=="  --body
 
 http://localhost:9999/bench/login
+http://localhost:9999/auth/test
 http://localhost:9999/auth/newapp {"name":"app1"}
 http://localhost:9999/auth/login {"username":"admin", "password":"admin"}
-http://localhost:9999/auth/test 
+
+http://localhost:9999/match/listopening 
+http://localhost:9999/match/listcomming
+http://localhost:9999/match/listclosed
