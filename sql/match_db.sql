@@ -5,9 +5,9 @@
 # http://www.sequelpro.com/
 # http://code.google.com/p/sequel-pro/
 #
-# Host: 127.0.0.1 (MySQL 5.6.10)
+# Host: 127.0.0.1 (MySQL 5.5.32-0ubuntu0.12.04.1)
 # Database: match_db
-# Generation Time: 2013-08-27 05:59:46 +0000
+# Generation Time: 2013-09-03 08:56:03 +0000
 # ************************************************************
 
 
@@ -45,7 +45,7 @@ CREATE TABLE `matches` (
   `name` varchar(60) NOT NULL,
   `appid` int(11) NOT NULL,
   `gameid` int(11) NOT NULL,
-  `order` tinyint(1) NOT NULL DEFAULT '0' COMMENT '0=ASC; 1=DESC',
+  `sort` tinyint(1) NOT NULL DEFAULT '0' COMMENT '0=ASC; 1=DESC',
   `begin` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP,
   `end` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
