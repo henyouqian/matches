@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"github.com/garyburd/redigo/redis"
 )
 
 func benchLogin(w http.ResponseWriter, r *http.Request) {
@@ -59,6 +60,7 @@ func benchHello(w http.ResponseWriter, r *http.Request) {
 
 func testdb(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
+	checkMathod(r, "GET")
 
 	rows, err := authDB.Query("SELECT id FROM user_accounts")
 	checkError(err, "")
@@ -87,8 +89,27 @@ func testdb(w http.ResponseWriter, r *http.Request) {
 	writeResponse(w, ids)
 }
 
+func rds(w http.ResponseWriter, r *http.Request) {
+	defer handleError(w)
+	checkMathod(r, "GET")
+
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	rc.Send("set", "foo", "yes")
+	rc.Send("get", "foo")
+	rc.Flush()
+	rc.Receive()
+	foo, err := redis.String(rc.Receive())
+	checkError(err, "")
+
+
+	writeResponse(w, foo)
+}
+
 func regBench() {
 	http.HandleFunc("/bench/login", benchLogin)
 	http.HandleFunc("/bench/hello", benchHello)
 	http.HandleFunc("/bench/testdb", testdb)
+	http.HandleFunc("/bench/redis", rds)
 }
