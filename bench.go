@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"github.com/garyburd/redigo/redis"
+	"encoding/json"
 )
 
 func benchLogin(w http.ResponseWriter, r *http.Request) {
@@ -58,38 +59,19 @@ func benchHello(w http.ResponseWriter, r *http.Request) {
 	writeResponse(w, "hello")
 }
 
-func testdb(w http.ResponseWriter, r *http.Request) {
+func benchDBSingleSelect(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
 	checkMathod(r, "GET")
 
-	rows, err := authDB.Query("SELECT id FROM user_accounts")
+	row := authDB.QueryRow("SELECT id FROM user_accounts WHERE username=?", "admin")
+	var userid uint32
+	err := row.Scan(&userid)
 	checkError(err, "")
 
-	ids := make([]uint32, 0, 50)
-	for rows.Next() {
-		var userid uint32
-		err = rows.Scan(&userid)
-		checkError(err, "")
-		ids = append(ids, userid)
-	}
-
-	rows, err = authDB.Query("SELECT id FROM user_accounts")
-	checkError(err, "")
-
-	// rows, err = auth_db.Query("SELECT id FROM user_accounts")
-	// checkError(err, "")
-
-	for rows.Next() {
-		var userid uint32
-		err = rows.Scan(&userid)
-		checkError(err, "")
-		ids = append(ids, userid)
-	}
-
-	writeResponse(w, ids)
+	writeResponse(w, userid)
 }
 
-func rds(w http.ResponseWriter, r *http.Request) {
+func benchRedisGet(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
 	checkMathod(r, "GET")
 
@@ -103,13 +85,65 @@ func rds(w http.ResponseWriter, r *http.Request) {
 	foo, err := redis.String(rc.Receive())
 	checkError(err, "")
 
+	// foo, err := redis.String(rc.Do("get", "foo"))
+	// checkError(err, "")
 
 	writeResponse(w, foo)
+}
+
+func benchJson(w http.ResponseWriter, r *http.Request) {
+	defer handleError(w)
+	checkMathod(r, "GET")
+
+	str := []byte(`
+		{
+			"Name": "aa",
+			"Gameid": 885,
+			"Begin": "2013/04/06 23:43:24",
+			"End": "2013/05/06 23:43:24",
+			"Sort": 0
+		}
+	`)
+
+	type Input struct {
+		Name   string
+		Gameid uint32
+		Begin  string
+		End    string
+		Sort   uint8
+	}
+	input := Input{}
+	err := json.Unmarshal(str, &input)
+	checkError(err, "")
+
+	writeResponse(w, input)
+}
+
+func benchJson2(w http.ResponseWriter, r *http.Request) {
+	defer handleError(w)
+	checkMathod(r, "GET")
+
+	str := []byte(`
+		{
+			"Name": "aa"
+		}
+	`)
+
+	type Input struct {
+		Name   string
+	}
+	input := Input{}
+	err := json.Unmarshal(str, &input)
+	checkError(err, "")
+
+	writeResponse(w, input)
 }
 
 func regBench() {
 	http.HandleFunc("/bench/login", benchLogin)
 	http.HandleFunc("/bench/hello", benchHello)
-	http.HandleFunc("/bench/testdb", testdb)
-	http.HandleFunc("/bench/redis", rds)
+	http.HandleFunc("/bench/dbsingleselect", benchDBSingleSelect)
+	http.HandleFunc("/bench/redisget", benchRedisGet)
+	http.HandleFunc("/bench/json", benchJson)
+	http.HandleFunc("/bench/json2", benchJson2)
 }
