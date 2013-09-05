@@ -20,20 +20,16 @@ type Session struct {
 	Appid    uint32
 }
 
-func init() {
-	
-}
-
 func newSession(w http.ResponseWriter, rc redis.Conn, userid uint64, username string, appid uint32) (usertoken string, err error) {
 	usertoken = ""
-	usertokenRaw, err := rc.Do("get", fmt.Sprintf("userid+appid:usertoken/%d+%d", userid, appid))
+	usertokenRaw, err := rc.Do("get", fmt.Sprintf("usertokens/%d+%d", userid, appid))
 	checkError(err, "")
 	if usertokenRaw != nil {
 		usertoken, err := redis.String(usertokenRaw, err)
 		if err != nil {
 			return usertoken, err
 		}
-		rc.Do("del", fmt.Sprintf("usertoken:session/%s", usertoken))
+		rc.Do("del", fmt.Sprintf("sessions/%s", usertoken))
 	}
 
 	usertoken = genUUID()
@@ -44,13 +40,12 @@ func newSession(w http.ResponseWriter, rc redis.Conn, userid uint64, username st
 		return usertoken, err
 	}
 
-	_, err = rc.Do("setex", fmt.Sprintf("usertoken:session/%s", usertoken), sessionLifeSecond, jsonSession)
-	if err != nil {
-		return usertoken, err
-	}
-	_, err = rc.Do("set", fmt.Sprintf("userid+appid:usertoken/%d+%d", userid, appid), usertoken)
-	if err != nil {
-		return usertoken, err
+	rc.Send("setex", fmt.Sprintf("sessions/%s", usertoken), sessionLifeSecond, jsonSession)
+	rc.Send("setex", fmt.Sprintf("usertokens/%d+%d", userid, appid), sessionLifeSecond, usertoken)
+	rc.Flush()
+	for i := 0; i < 2; i++ {
+		_, err = rc.Receive()
+		checkError(err, "")
 	}
 
 	// cookie
@@ -64,7 +59,7 @@ func findSession(w http.ResponseWriter, r *http.Request) (*Session, error) {
 
 	usertokenCookie, err := r.Cookie("usertoken")
 	if err != nil {
-		return session, errors.New("err_auth")
+		return session, errors.New("usertoken not in cookie")
 	}
 	usertoken := usertokenCookie.Value
 
@@ -72,10 +67,9 @@ func findSession(w http.ResponseWriter, r *http.Request) (*Session, error) {
 	rc := redisPool.Get()
 	defer rc.Close()
 
-	sessionBytes, err := redis.Bytes(rc.Do("get", fmt.Sprintf("usertoken:session/%s", usertoken)))
+	sessionBytes, err := redis.Bytes(rc.Do("get", fmt.Sprintf("sessions/%s", usertoken)))
 	if err != nil {
-		err = errors.New("err_auth")
-		return session, errors.New("err_auth")
+		return session, err
 	}
 
 	err = json.Unmarshal(sessionBytes, &session)
@@ -174,12 +168,44 @@ func login(w http.ResponseWriter, r *http.Request) {
 	writeResponse(w, reply)
 }
 
+func logout(w http.ResponseWriter, r *http.Request) {
+	defer handleError(w)
+	checkMathod(r, "POST")
+
+	session, err := findSession(w, r)
+	if err != nil {
+		writeResponse(w, "logout")
+		return
+	}
+
+	usertokenCookie, err := r.Cookie("usertoken")
+	if err != nil {
+		writeResponse(w, "logout")
+		return
+	}
+	usertoken := usertokenCookie.Value
+
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	rc.Send("del", fmt.Sprintf("sessions/%s", usertoken))
+	rc.Send("del", fmt.Sprintf("usertokens/%d+%d", session.Userid, session.Appid))
+	rc.Flush()
+	for i := 0; i < 2; i++ {
+		_, err = rc.Receive()
+		checkError(err, "")
+	}
+
+	// reply
+	writeResponse(w, "logout")
+}
+
 func newApp(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
 	checkMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	checkError(err, "")
+	checkError(err, "err_auth")
 	checkAdmin(session)
 
 	// input
@@ -210,12 +236,40 @@ func newApp(w http.ResponseWriter, r *http.Request) {
 	writeResponse(w, reply)
 }
 
-func test(w http.ResponseWriter, r *http.Request) {
+func listApp(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
 	checkMathod(r, "POST")
 
 	session, err := findSession(w, r)
+	checkError(err, "err_auth")
+	checkAdmin(session)
+
+	// db
+	rows, err := authDB.Query("SELECT name, secret FROM apps")
 	checkError(err, "")
+
+	type App struct {
+		Name string
+		Secret string
+	}
+
+	apps := make([]App, 0, 16)
+	var app App
+	for rows.Next() {
+		err = rows.Scan(&app.Name, &app.Secret)
+		checkError(err, "")
+		apps = append(apps, app)
+	}
+
+	writeResponse(w, apps)
+}
+
+func info(w http.ResponseWriter, r *http.Request) {
+	defer handleError(w)
+	checkMathod(r, "POST")
+
+	session, err := findSession(w, r)
+	checkError(err, "err_auth")
 
 	//
 	usertokenCookie, err := r.Cookie("usertoken")
@@ -233,7 +287,9 @@ func test(w http.ResponseWriter, r *http.Request) {
 
 func regAuth() {
 	http.HandleFunc("/auth/login", login)
+	http.HandleFunc("/auth/logout", logout)
 	http.HandleFunc("/auth/register", register)
 	http.HandleFunc("/auth/newapp", newApp)
-	http.HandleFunc("/auth/test", test)
+	http.HandleFunc("/auth/listapp", listApp)
+	http.HandleFunc("/auth/info", info)
 }

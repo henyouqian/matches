@@ -3,16 +3,18 @@ package main
 import (
 	"net/http"
 	"time"
-	// "github.com/golang/glog"
+	"github.com/garyburd/redigo/redis"
+	"encoding/json"
+	"fmt"
 )
 
 type Match struct {
 	Id uint32
 	Name string
 	Gameid uint32
-	Begin uint64
-	End uint64
-	Sort uint8
+	Begin int64
+	End int64
+	Sort string
 }
 
 func newMatch(w http.ResponseWriter, r *http.Request) {
@@ -20,7 +22,7 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 	checkMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	checkError(err, "")
+	checkError(err, "err_auth")
 	checkAdmin(session)
 
 	appid := session.Appid
@@ -34,7 +36,7 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 		Gameid uint32
 		Begin  string
 		End    string
-		Sort   uint8
+		Sort   string
 	}
 	input := Input{}
 	decodeRequestBody(r, &input)
@@ -43,11 +45,11 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 		sendError("err_input", "Missing Name || Begin || End || Gameid")
 	}
 
-	if input.Sort != 0 && input.Sort != 1 {
-		sendError("err_input", "Invalid Sort, must be 0 or 1")
+	if input.Sort != "ASC" && input.Sort != "DESC" {
+		sendError("err_input", "Invalid Sort, must be ASC or DESC")
 	}
 
-	//
+	// times
 	const timeform = "2006-01-02 15:04:05"
 	begin, err := time.ParseInLocation(timeform, input.Begin, time.Local)
 	checkError(err, "err_shit")
@@ -59,134 +61,89 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 	if endUnix - beginUnix <= 60 {
 		sendError("err_input", "endUnix - beginUnix must > 60 seconds")
 	}
+	if time.Now().Unix() > endUnix {
+		sendError("err_input", "end time before now")
+	}
 
-	// db
-	db := opendb("match_db")
-	defer db.Close()
+	//
+	rc := redisPool.Get()
+	defer rc.Close()
 
-	stmt, err := db.Prepare(`INSERT INTO matches (name, appid, gameid, sort, begin, end)  VALUES (?, ?, ?, ?, ?, ?)`)
+	matchId, err := redis.Int(rc.Do("incr", "matchIdAutoIncr"))
 	checkError(err, "")
 
-	res, err := stmt.Exec(input.Name, appid, input.Gameid, input.Sort, beginUnix, endUnix)
+	match := Match{
+		uint32(matchId),
+		input.Name,
+		input.Gameid,
+		beginUnix,
+		endUnix,
+		input.Sort,
+	}
+
+	matchJson, err := json.Marshal(match)
 	checkError(err, "")
 
-	id, err := res.LastInsertId()
-	checkError(err, "")
+	key := fmt.Sprintf("matches/%d", matchId)
+	rc.Send("set", key, matchJson)
+	key = fmt.Sprintf("matchesInApp/%d", appid)
+	rc.Send("zadd", key, endUnix, matchId)
+	rc.Flush()
+	for i := 0; i < 2; i++ {
+		_, err = rc.Receive()
+		checkError(err, "")
+	}
 
 	// reply
-	type Reply struct {
-		Matchid int64
-	}
-	reply := Reply{id}
-	writeResponse(w, &reply)
+	writeResponse(w, match)
 }
 
-func listOpening(w http.ResponseWriter, r *http.Request) {
+func listMatch(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
 	checkMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	checkError(err, "")
+	checkError(err, "err_auth")
 
-	//
-	now := time.Now().Unix()
+	appid := session.Appid
+	if appid == 0 {
+		sendError("err_auth", "Please login with app secret")
+	}
 
-	// db
-	db := opendb("match_db")
-	defer db.Close()
+	nowUnix := time.Now().Unix()
 
-	rows, err := db.Query("SELECT id, name, gameid, sort, begin, end FROM matches WHERE begin < ? AND end > ? AND appid = ?", now, now, session.Appid)
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	// get matchIds
+	key := fmt.Sprintf("matchesInApp/%d", appid)
+	matchIdValues, err := redis.Values(rc.Do("zrangebyscore", key, nowUnix, "+inf"))
 	checkError(err, "")
 	
-	matches := make([]Match, 0, 16)
-	var match Match
-	for rows.Next() {
-		err = rows.Scan(&match.Id, &match.Name, &match.Gameid, &match.Sort, &match.Begin, &match.End)
+	matchKeys := make([]interface{}, 0, 10)
+	for _, v := range matchIdValues {
+		var id int
+		id, err := redis.Int(v, err)
+		checkError(err, "")
+		matchkey := fmt.Sprintf("matches/%d", id)
+		matchKeys = append(matchKeys, matchkey)
+	}
+
+	// get match data
+	matchesValues, err := redis.Values(rc.Do("mget", matchKeys...))
+
+	matches := make([]interface{}, 0, 10)
+	for _, v := range matchesValues {
+		var match interface{}
+		err = json.Unmarshal(v.([]byte), &match)
 		checkError(err, "")
 		matches = append(matches, match)
 	}
 
-	type Reply struct {
-		Matches []Match
-	}
-	reply := Reply{
-		matches,
-	}
-	writeResponse(w, reply)
+	writeResponse(w, matches)
 }
-
-func listComming(w http.ResponseWriter, r *http.Request) {
-	defer handleError(w)
-	checkMathod(r, "POST")
-
-	session, err := findSession(w, r)
-	checkError(err, "")
-
-	//
-	now := time.Now().Unix()
-
-	// db
-	db := opendb("match_db")
-	defer db.Close()
-
-	rows, err := db.Query("SELECT id, name, gameid, sort, begin, end FROM matches WHERE begin > ? AND appid = ?", now, session.Appid)
-	checkError(err, "")
-	
-	matches := make([]Match, 0, 16)
-	var match Match
-	for rows.Next() {
-		err = rows.Scan(&match.Id, &match.Name, &match.Gameid, &match.Sort, &match.Begin, &match.End)
-		checkError(err, "")
-		matches = append(matches, match)
-	}
-
-	type Reply struct {
-		Matches []Match
-	}
-	reply := Reply{
-		matches,
-	}
-	writeResponse(w, reply)
-}
-
-func listClosed(w http.ResponseWriter, r *http.Request) {
-	defer handleError(w)
-	checkMathod(r, "POST")
-
-	session, err := findSession(w, r)
-	checkError(err, "")
-
-	//
-	now := time.Now().Unix()
-
-	// db
-	db := opendb("match_db")
-	defer db.Close()
-
-	rows, err := db.Query("SELECT id, name, gameid, sort, begin, end FROM matches WHERE end < ? AND appid = ?", now, session.Appid)
-	checkError(err, "")
-	
-	matches := make([]Match, 0, 16)
-	var match Match
-	for rows.Next() {
-		err = rows.Scan(&match.Id, &match.Name, &match.Gameid, &match.Sort, &match.Begin, &match.End)
-		checkError(err, "")
-		matches = append(matches, match)
-	}
-
-	type Reply struct {
-		Matches []Match
-	}
-	reply := Reply{
-		matches,
-	}
-	writeResponse(w, reply)
-}
-
 
 func regMatch() {
-	http.HandleFunc("/match/newmatch", newMatch)
-	http.HandleFunc("/match/listopening", listOpening)
-	http.HandleFunc("/match/listcomming", listComming)
-	http.HandleFunc("/match/listclosed", listClosed)
+	http.HandleFunc("/match/new", newMatch)
+	http.HandleFunc("/match/list", listMatch)
 }

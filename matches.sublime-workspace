@@ -44,6 +44,14 @@
 	},
 	"file_history":
 	[
+		"/Users/weili/Documents/projects/2013/cdgm/www/admin.js",
+		"/Users/weili/Documents/projects/2013/cdgm/www/admin.html",
+		"/Users/weili/go/src/github.com/henyouqian/matches/kv.go",
+		"/Users/weili/go/src/github.com/henyouqian/matches/static/console.js",
+		"/Users/weili/go/src/github.com/henyouqian/matches/static/console.html",
+		"/Users/weili/go/src/github.com/henyouqian/matches/static/leaderboard.js",
+		"/Users/weili/go/src/github.com/henyouqian/matches/static/leaderboard.html",
+		"/Users/weili/Downloads/jquery-2.0.3.min.map",
 		"/Users/weili/go/src/github.com/henyouqian/matches/matches.sublime-project",
 		"/private/var/folders/0_/hxdnty8x27dcn_y92tm86ylw0000gn/T/auth.WeitekiMacBook-Air.weili.log.INFO.20130829-223339.712",
 		"/Users/weili/go/src/github.com/henyouqian/matches/bench.go",
@@ -86,6 +94,10 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"items",
+			"repeat",
+			"leader",
+			"span",
 			"findSession",
 			"session",
 			"token",
@@ -209,11 +221,7 @@
 			"PVRSDKDIR",
 			"KEGL",
 			"OGLES2ExampleUI.cpp",
-			"LOCAL_PATH",
-			"BUILD_SHARED_LIBRARY",
-			"LOCAL_SRC_FILES",
-			"OGLES2Water.cpp",
-			"spread"
+			"LOCAL_PATH"
 		],
 		"highlight": true,
 		"in_selection": false,
