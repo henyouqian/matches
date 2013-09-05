@@ -2,6 +2,11 @@ package main
 
 import (
 	"github.com/garyburd/redigo/redis"
+	"time"
+)
+
+const (
+	KEY_KV_ZSETS = "matches/kv"
 )
 
 func setKV(key string, value string, expireSec uint, rc redis.Conn) {
@@ -10,10 +15,12 @@ func setKV(key string, value string, expireSec uint, rc redis.Conn) {
 		defer rc.Close()
 	}
 
-	if expireSec < 60 {expireSec = 60}
+	if expireSec > 3600 {
+		expireSec = 3600
+	}
 
 	rc.Send("SET", key, value)
-	ZADD myzset 1 "one"
-	rc.Send("GET", "foo")
+	score := time.Now().Unix() + int64(expireSec)
+	rc.Send("ZADD", KEY_KV_ZSETS, score, key)
 	rc.Flush()
 }

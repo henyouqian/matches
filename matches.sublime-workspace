@@ -1,0 +1,302 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"new",
+				"newSession"
+			],
+			[
+				"chec",
+				"checkError"
+			],
+			[
+				"poin",
+				"pointerCount"
+			]
+		]
+	},
+	"buffers":
+	[
+	],
+	"build_system": "",
+	"command_palette":
+	{
+		"height": 0.0,
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"console":
+	{
+		"height": 146.0
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"file_history":
+	[
+		"/Users/weili/go/src/github.com/henyouqian/matches/matches.sublime-project",
+		"/private/var/folders/0_/hxdnty8x27dcn_y92tm86ylw0000gn/T/auth.WeitekiMacBook-Air.weili.log.INFO.20130829-223339.712",
+		"/Users/weili/go/src/github.com/henyouqian/matches/bench.go",
+		"/Users/weili/go/src/github.com/henyouqian/matches/run",
+		"/Users/weili/Documents/tmp/leaderboard/b.go",
+		"/Users/weili/Documents/tmp/leaderboard/a.go",
+		"/Users/weili/Documents/bak/lwbak/dev2012/arrow3/arrow3/data/font/a_2x.fnt",
+		"/Users/weili/Documents/projects/2013/lwfk/lwfk/lwApp.cpp",
+		"/Users/weili/Documents/projects/2013/cdgm/pvp.py",
+		"/Users/weili/Documents/projects/2013/cdgm/brukva/client.py",
+		"/Users/weili/Documents/projects/2013/lwfk/samples/dev/build/android/jni/dev/Android副本.mk",
+		"/Users/Shared/Imagination/PowerVR/GraphicsSDK/SDK_3.1/Examples/Advanced/ExampleUI/OGLES2/Build/Android/jni/Android.mk",
+		"/Users/weili/Documents/projects/2013/hanzi/server/hanzid.py",
+		"/Users/weili/Documents/projects/2013/cdgm/wh.py",
+		"/Users/weili/Documents/projects/2013/hanzi/server/tool/pack/pack.py",
+		"/Users/weili/Documents/projects/2013/hanzi/server/static/js/main.js",
+		"/Users/weili/Documents/projects/2013/hanzi/server/static/main.js",
+		"/Users/weili/Documents/projects/2013/hanzi/server/static/js/jquery.fileupload.js",
+		"/Users/weili/Documents/projects/2013/hanzi/server/static/util.js",
+		"/Users/weili/Documents/projects/2013/hanzi/server/static/upload.js",
+		"/Users/weili/Documents/projects/2013/hanzi/server/adb.py",
+		"/Users/weili/Documents/projects/2013/hanzi/hanzi/config.py"
+	],
+	"find":
+	{
+		"height": 35.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+			"/Users/weili/go/src/github.com/henyouqian/matches",
+			"/Users/weili/Documents/projects/2013/cdgm",
+			""
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+			"findSession",
+			"session",
+			"token",
+			"events",
+			"map_evt_tbl",
+			"err_input",
+			"opendb",
+			"redisPool",
+			"newSession",
+			"Match",
+			"session",
+			"newSession",
+			"err_input",
+			"panic",
+			"sendError",
+			"if err",
+			"checkError",
+			"if err",
+			"checkError",
+			"panic",
+			"sendError",
+			"panic",
+			"decodeRequestBody",
+			"log",
+			"input",
+			"Match",
+			"userid:usertoken",
+			"login",
+			"param",
+			"newSession",
+			"user_account",
+			"newSession",
+			"born",
+			"UUID",
+			"uuid",
+			"account_db",
+			"uuid",
+			"print",
+			"int",
+			"print",
+			"newSession",
+			"sessionLifeSecond",
+			"deco",
+			"60",
+			"fmt",
+			"errorResponse",
+			"aa",
+			"5%7D",
+			"5",
+			"aa",
+			"WebSocket",
+			"range",
+			"Subscribe",
+			"Subscribe()",
+			"subscribe",
+			"subscribe\n",
+			"time",
+			"863",
+			"items = json.loads",
+			"update",
+			"50",
+			"gamedata",
+			"items = {",
+			"dict(zip(cols",
+			"addCrystal",
+			"add",
+			"isInZone",
+			"start",
+			"IDLE",
+			"mask",
+			"key",
+			"events",
+			"handle_input",
+			"onInputEvent",
+			"handle_input",
+			"items",
+			"move",
+			"touch",
+			"SetReadPath",
+			"m_pPVRShellInit->SetReadPath",
+			"touch",
+			"OGLES2IntroducingPFX",
+			"PVRShellGet\n",
+			"set",
+			"sell",
+			"_run_callback",
+			"_read_from_buffer",
+			"_try_inline_read",
+			"read_until",
+			"_handle_events",
+			"_add_io_state",
+			"add_handler",
+			"add",
+			"read_response",
+			"readline",
+			"execute_",
+			"execut",
+			"execute_c",
+			"execution_context",
+			"process",
+			"@process",
+			"read_done",
+			"queue_wait",
+			"try_to_perform_read",
+			"queue_wait",
+			"process_data",
+			"readline",
+			"execute_command",
+			"read_line",
+			"write(",
+			"readline",
+			"builds",
+			"PVRShell.cpp",
+			"build_textures",
+			"ASSETDIR",
+			"ASSETDIR\n",
+			"mkdir",
+			"android_native_app_glue",
+			"shader",
+			"include",
+			"PVRSDKDIR",
+			"KEGL",
+			"OGLES2ExampleUI.cpp",
+			"LOCAL_PATH",
+			"BUILD_SHARED_LIBRARY",
+			"LOCAL_SRC_FILES",
+			"OGLES2Water.cpp",
+			"spread"
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+			""
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"sheets":
+			[
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 0.0
+	},
+	"input":
+	{
+		"height": 0.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.exec":
+	{
+		"height": 118.0
+	},
+	"replace":
+	{
+		"height": 64.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"show_minimap": true,
+	"show_open_files": false,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 184.0,
+	"status_bar_visible": true
+}
