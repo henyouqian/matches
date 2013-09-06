@@ -124,3 +124,47 @@ func genUUID() string {
 	checkError(err, "")
 	return base64.URLEncoding.EncodeToString(uuid[:])
 }
+
+func repeatSingletonTask(key string, interval time.Duration, f func()) {
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	intervalMin := 10 * time.Millisecond
+	if interval < intervalMin {
+		interval = intervalMin
+	}
+
+	fingerprint := genUUID()
+	redisKey := fmt.Sprintf("locker/%s", key)
+	for {
+		rdsfp, _ := redis.String(rc.Do("get", redisKey))
+		if rdsfp == fingerprint {
+			// it's mine
+			_, err := rc.Do("expire", redisKey, int64(interval.Seconds())+1)
+			checkError(err, "")
+			f()
+			time.Sleep(interval)
+			continue
+		} else {
+			// takeup
+			if rdsfp == "" {
+				_, err := rc.Do("setex", redisKey, int64(interval.Seconds())+1, fingerprint)
+				checkError(err, "")
+				f()
+				time.Sleep(interval)
+				continue
+			}
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+}
+
+
+// just for test
+func printlalalaTask() {
+	printlalala := func () {
+		fmt.Println("lalala")
+	}
+	go repeatSingletonTask("printlalala", 500*time.Millisecond, printlalala)
+}

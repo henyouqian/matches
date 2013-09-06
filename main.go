@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"flag"
 	"runtime"
+	"fmt"
 )
 
 func staticFile(w http.ResponseWriter, r *http.Request) {
@@ -12,6 +13,8 @@ func staticFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	var port int
+	flag.IntVar(&port, "port", 9999, "server port")
 	flag.Parse()
 
 	http.HandleFunc("/static/", staticFile)
@@ -21,7 +24,10 @@ func main() {
 	regBench()
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	// printlalalaTask()
 	
-	glog.Infof("Server running: cpu=%d", runtime.NumCPU())
-	glog.Fatal(http.ListenAndServe(":9999", nil))
+	glog.Infof("Server running: cpu=%d, port=%d", runtime.NumCPU(), port)
+	glog.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
+
