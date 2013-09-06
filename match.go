@@ -89,7 +89,7 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 	matchJson, err := json.Marshal(match)
 	checkError(err, "")
 
-	key := fmt.Sprintf("matches/%d", matchId)
+	key := fmt.Sprintf("matches/%d+%d", appid, matchId)
 	rc.Send("set", key, matchJson)
 	key = fmt.Sprintf("matchesInApp/%d", appid)
 	rc.Send("zadd", key, endUnix, matchId)
@@ -111,12 +111,28 @@ func delMatch(w http.ResponseWriter, r *http.Request) {
 	checkError(err, "err_auth")
 	checkAdmin(session)
 
+	appid := session.Appid
+	if appid == 0 {
+		sendError("err_auth", "Please login with app secret")
+	}
+
 	// input
-	input := make([]uint32, 0, 8)
-	decodeRequestBody(r, &input)
+	matchIds := make([]interface{}, 0, 8)
+	decodeRequestBody(r, &matchIds)
+
+	// redis
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	key := fmt.Sprintf("matchesInApp/%d", appid)
+	params := make([]interface{}, 0, 8)
+	params = append(params, key)
+	params = append(params, matchIds)
+	// rc.Send("zrem", matchIds ...)
+	// rc.Flush()
 
 	// reply
-	writeResponse(w, input)
+	writeResponse(w, params)
 }
 
 
@@ -147,7 +163,7 @@ func listMatch(w http.ResponseWriter, r *http.Request) {
 		var id int
 		id, err := redis.Int(v, err)
 		checkError(err, "")
-		matchkey := fmt.Sprintf("matches/%d", id)
+		matchkey := fmt.Sprintf("matches/%d+%d", appid, id)
 		matchKeys = append(matchKeys, matchkey)
 	}
 

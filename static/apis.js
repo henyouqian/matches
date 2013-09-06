@@ -130,7 +130,7 @@ function Controller($scope, $http) {
 				sendCodeMirror.doc.setValue("")
 			}
 			
-			recvCodeMirror.doc.setValue("")
+			// recvCodeMirror.doc.setValue("")
 		}
 	}
 
