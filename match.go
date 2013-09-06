@@ -11,10 +11,11 @@ import (
 type Match struct {
 	Id uint32
 	Name string
-	Gameid uint32
+	GameId uint32
 	Begin int64
 	End int64
 	Sort string
+	TimeLimit uint32
 }
 
 func newMatch(w http.ResponseWriter, r *http.Request) {
@@ -33,20 +34,23 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 	// input
 	type Input struct {
 		Name   string
-		Gameid uint32
+		GameId uint32
 		Begin  string
 		End    string
 		Sort   string
+		TimeLimit uint32
 	}
 	input := Input{}
 	decodeRequestBody(r, &input)
 	
-	if input.Name == "" || input.Begin == "" || input.End == "" || input.Gameid == 0 {
+	if input.Name == "" || input.Begin == "" || input.End == "" || input.GameId == 0 {
 		sendError("err_input", "Missing Name || Begin || End || Gameid")
 	}
-
 	if input.Sort != "ASC" && input.Sort != "DESC" {
 		sendError("err_input", "Invalid Sort, must be ASC or DESC")
+	}
+	if input.TimeLimit < 60 {
+		sendError("err_input", "Time limit must > 60")
 	}
 
 	// times
@@ -75,10 +79,11 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 	match := Match{
 		uint32(matchId),
 		input.Name,
-		input.Gameid,
+		input.GameId,
 		beginUnix,
 		endUnix,
 		input.Sort,
+		input.TimeLimit,
 	}
 
 	matchJson, err := json.Marshal(match)
@@ -97,6 +102,23 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 	// reply
 	writeResponse(w, match)
 }
+
+func delMatch(w http.ResponseWriter, r *http.Request) {
+	defer handleError(w)
+	checkMathod(r, "POST")
+
+	session, err := findSession(w, r)
+	checkError(err, "err_auth")
+	checkAdmin(session)
+
+	// input
+	input := make([]uint32, 0, 8)
+	decodeRequestBody(r, &input)
+
+	// reply
+	writeResponse(w, input)
+}
+
 
 func listMatch(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
@@ -145,5 +167,6 @@ func listMatch(w http.ResponseWriter, r *http.Request) {
 
 func regMatch() {
 	http.HandleFunc("/match/new", newMatch)
+	http.HandleFunc("/match/del", delMatch)
 	http.HandleFunc("/match/list", listMatch)
 }

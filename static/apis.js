@@ -66,13 +66,17 @@ function Controller($scope, $http) {
 			"path":"match",
 			"apis":[
 				{
-					"name": "new",
-					"method": "POST",
-					"data": {"Name":"aa", "Gameid":1, "Begin":"2006-01-02 15:04:05", "End":"2006-01-02 15:04:05", "Sort":"DESC"}
-				},{
 					"name": "list",
 					"method": "POST",
 					"data": ""
+				},{
+					"name": "new",
+					"method": "POST",
+					"data": {"Name":"aa", "Gameid":1, "Begin":"2006-01-02 15:04:05", "End":"2014-01-02 15:04:05", "Sort":"DESC", "TimeLimit":300}
+				},{
+					"name": "del",
+					"method": "POST",
+					"data": [1, 2]
 				},
 			] 
 		},

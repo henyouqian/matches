@@ -173,16 +173,10 @@ func logout(w http.ResponseWriter, r *http.Request) {
 	checkMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	if err != nil {
-		writeResponse(w, "logout")
-		return
-	}
+	checkError(err, "err_already_logout")
 
 	usertokenCookie, err := r.Cookie("usertoken")
-	if err != nil {
-		writeResponse(w, "logout")
-		return
-	}
+	checkError(err, "err_already_logout")
 	usertoken := usertokenCookie.Value
 
 	rc := redisPool.Get()

@@ -92,9 +92,7 @@ func checkError(err error, errType string) {
 func decodeRequestBody(r *http.Request, v interface{}) {
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(v)
-	if err != nil {
-		sendError("err_decode_body", "")
-	}
+	checkError(err, "err_decode_body")
 }
 
 func writeResponse(w http.ResponseWriter, v interface{}) {
