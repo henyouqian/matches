@@ -70,7 +70,7 @@ func benchDBSingleSelect(w http.ResponseWriter, r *http.Request) {
 	writeResponse(w, userid)
 }
 
-const insertCount = 1000
+const insertCount = 10
 
 func benchDBInsert(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
@@ -98,6 +98,8 @@ func benchDBInsertTx(w http.ResponseWriter, r *http.Request) {
 
 	//db
 	tx, err := matchDB.Begin()
+	defer endTx(tx, &err)
+
 	checkError(err, "")
 	stmt, err := tx.Prepare("INSERT INTO insertTest (a, b, c, d) VALUES (?, ?, ?, ?)")
 	checkError(err, "")
@@ -110,7 +112,6 @@ func benchDBInsertTx(w http.ResponseWriter, r *http.Request) {
 		ids[i], err = res.LastInsertId()
 		checkError(err, "")
 	}
-	tx.Commit()
 
 	writeResponse(w, ids)
 }

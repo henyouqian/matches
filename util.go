@@ -40,6 +40,14 @@ func init() {
 	matchDB.SetMaxIdleConns(10)
 }
 
+func endTx(tx *sql.Tx, err *error) {
+	if *err == nil {
+		tx.Commit()
+	} else {
+		tx.Rollback()
+	}
+}
+
 type Err struct {
 	Error       string
 	ErrorString string
