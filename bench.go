@@ -70,6 +70,51 @@ func benchDBSingleSelect(w http.ResponseWriter, r *http.Request) {
 	writeResponse(w, userid)
 }
 
+const insertCount = 1000
+
+func benchDBInsert(w http.ResponseWriter, r *http.Request) {
+	defer handleError(w)
+	checkMathod(r, "GET")
+
+	//db
+	stmt, err := matchDB.Prepare("INSERT INTO insertTest (a, b, c, d) VALUES (?, ?, ?, ?)")
+	checkError(err, "")
+
+	ids := make([]int64, insertCount)
+	for i := 0; i < insertCount; i++ {
+		res, err := stmt.Exec(1, 2, 3, 4)
+		checkError(err, "err_account_exists")
+
+		ids[i], err = res.LastInsertId()
+		checkError(err, "")
+	}
+
+	writeResponse(w, ids)
+}
+
+func benchDBInsertTx(w http.ResponseWriter, r *http.Request) {
+	defer handleError(w)
+	checkMathod(r, "GET")
+
+	//db
+	tx, err := matchDB.Begin()
+	checkError(err, "")
+	stmt, err := tx.Prepare("INSERT INTO insertTest (a, b, c, d) VALUES (?, ?, ?, ?)")
+	checkError(err, "")
+
+	ids := make([]int64, insertCount)
+	for i := 0; i < insertCount; i++ {
+		res, err := stmt.Exec(1, 2, 3, 4)
+		checkError(err, "err_account_exists")
+
+		ids[i], err = res.LastInsertId()
+		checkError(err, "")
+	}
+	tx.Commit()
+
+	writeResponse(w, ids)
+}
+
 func benchRedisGet(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
 	checkMathod(r, "GET")
@@ -142,6 +187,8 @@ func regBench() {
 	http.HandleFunc("/bench/login", benchLogin)
 	http.HandleFunc("/bench/hello", benchHello)
 	http.HandleFunc("/bench/dbsingleselect", benchDBSingleSelect)
+	http.HandleFunc("/bench/dbinsert", benchDBInsert)
+	http.HandleFunc("/bench/dbinserttx", benchDBInsertTx)
 	http.HandleFunc("/bench/redisget", benchRedisGet)
 	http.HandleFunc("/bench/json", benchJson)
 	http.HandleFunc("/bench/json2", benchJson2)

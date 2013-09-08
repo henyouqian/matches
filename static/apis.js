@@ -16,6 +16,14 @@ function Controller($scope, $http) {
 					"method": "GET",
 					"data": ""
 				},{
+					"name": "dbinsert",
+					"method": "GET",
+					"data": ""
+				},{
+					"name": "dbinserttx",
+					"method": "GET",
+					"data": ""
+				},{
 					"name": "redisget",
 					"method": "GET",
 					"data": ""
@@ -134,6 +142,8 @@ function Controller($scope, $http) {
 		}
 	}
 
+	$scope.queryTick = 0
+
 	$scope.send = function() {
 		var url = "../"+$scope.currUrl
 		var input = sendCodeMirror.doc.getValue()
@@ -143,27 +153,37 @@ function Controller($scope, $http) {
 			} catch(err) {
 				alert("parse json error")
 				return
-			}
-				
+			}	
+		}
+		var t = window.performance.now()
+		function printQueryTick() {
+			$scope.$apply(function(){
+				$scope.queryTick = Math.round(window.performance.now() - t)
+			});
 		}
 		if ($scope.currApi.method == "GET") {
 			$.getJSON(url, input, function(json){
+				printQueryTick()
 				recvCodeMirror.doc.setValue(JSON.stringify(json, null, '\t'))
 			})
 			.fail(function(obj) {
+				printQueryTick()
 				var text = obj.status + ":" + obj.statusText + "\n\n" + JSON.stringify(obj.responseJSON, null, '\t')
 				recvCodeMirror.doc.setValue(text) 
 			})
 		}else if ($scope.currApi.method == "POST") {
 			$.post(url, sendCodeMirror.doc.getValue(), function(json){
+				printQueryTick()
 				recvCodeMirror.doc.setValue(JSON.stringify(json, null, '\t'))
 			}, "json")
 			.fail(function(obj) {
+				printQueryTick()
 				var text = obj.status + ":" + obj.statusText + "\n\n" + JSON.stringify(obj.responseJSON, null, '\t')
 				recvCodeMirror.doc.setValue(text) 
 			})
 		}
-		
 	}
+
+	
 }
 
