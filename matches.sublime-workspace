@@ -4,6 +4,10 @@
 		"selected_items":
 		[
 			[
+				"check",
+				"checkError"
+			],
+			[
 				"new",
 				"newSession"
 			],
@@ -19,6 +23,54 @@
 	},
 	"buffers":
 	[
+		{
+			"file": "match.go",
+			"settings":
+			{
+				"buffer_size": 4421,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "auth.go",
+			"settings":
+			{
+				"buffer_size": 6277,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "bench.go",
+			"settings":
+			{
+				"buffer_size": 2966,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "util.go",
+			"settings":
+			{
+				"buffer_size": 3356,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "static/apis.html",
+			"settings":
+			{
+				"buffer_size": 1974,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "static/apis.js",
+			"settings":
+			{
+				"buffer_size": 3527,
+				"line_ending": "Unix"
+			}
+		}
 	],
 	"build_system": "",
 	"command_palette":
@@ -94,6 +146,28 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"rc.send",
+			"...",
+			"Send(",
+			"appid",
+			"send",
+			"sen'd",
+			"matches/",
+			"logout",
+			"json.",
+			"err_auth",
+			"finds",
+			"err_auth",
+			"find",
+			"findse",
+			"err_auth",
+			"findSession",
+			"send(",
+			"send",
+			"userid+appid:usertoken",
+			"usertoken:session",
+			"rc",
+			"redis",
 			"items",
 			"repeat",
 			"leader",
@@ -199,29 +273,7 @@
 			"execution_context",
 			"process",
 			"@process",
-			"read_done",
-			"queue_wait",
-			"try_to_perform_read",
-			"queue_wait",
-			"process_data",
-			"readline",
-			"execute_command",
-			"read_line",
-			"write(",
-			"readline",
-			"builds",
-			"PVRShell.cpp",
-			"build_textures",
-			"ASSETDIR",
-			"ASSETDIR\n",
-			"mkdir",
-			"android_native_app_glue",
-			"shader",
-			"include",
-			"PVRSDKDIR",
-			"KEGL",
-			"OGLES2ExampleUI.cpp",
-			"LOCAL_PATH"
+			"read_done"
 		],
 		"highlight": true,
 		"in_selection": false,
@@ -240,8 +292,173 @@
 	"groups":
 	[
 		{
+			"selected": 0,
 			"sheets":
 			[
+				{
+					"buffer": 0,
+					"file": "match.go",
+					"settings":
+					{
+						"buffer_size": 4421,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								2878,
+								2878
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Go/Go.tmLanguage",
+							"translate_tabs_to_spaces": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 1818.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "auth.go",
+					"settings":
+					{
+						"buffer_size": 6277,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								3996,
+								3996
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Go/Go.tmLanguage",
+							"translate_tabs_to_spaces": false,
+							"word_wrap": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 4376.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 2,
+					"file": "bench.go",
+					"settings":
+					{
+						"buffer_size": 2966,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1778,
+								1778
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Go/Go.tmLanguage",
+							"translate_tabs_to_spaces": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 1187.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 3,
+					"file": "util.go",
+					"settings":
+					{
+						"buffer_size": 3356,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1767,
+								1767
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Go/Go.tmLanguage",
+							"translate_tabs_to_spaces": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 1486.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 4,
+					"file": "static/apis.html",
+					"settings":
+					{
+						"buffer_size": 1974,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1240,
+								1240
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/HTML/HTML.tmLanguage",
+							"tab_size": 2,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 568.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 5,
+					"file": "static/apis.js",
+					"settings":
+					{
+						"buffer_size": 3527,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1461,
+								1461
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/JavaScript/JavaScript.tmLanguage",
+							"translate_tabs_to_spaces": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 2451.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				}
 			]
 		}
 	],

@@ -1,9 +1,9 @@
 package main
 
 import (
-	"net/http"
-	"github.com/garyburd/redigo/redis"
 	"encoding/json"
+	"github.com/garyburd/redigo/redis"
+	"net/http"
 )
 
 func benchLogin(w http.ResponseWriter, r *http.Request) {
@@ -16,7 +16,7 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 		Password  string
 		Appsecret string
 	}
-	input := Input{Username:"aa", Password:"aa"}
+	input := Input{Username: "aa", Password: "aa"}
 
 	if input.Username == "" || input.Password == "" {
 		sendError("err_input", "")
@@ -53,7 +53,6 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 	reply := Reply{usertoken, appid}
 	writeResponse(w, reply)
 }
-
 
 func benchHello(w http.ResponseWriter, r *http.Request) {
 	writeResponse(w, "hello")
@@ -130,7 +129,7 @@ func benchJson2(w http.ResponseWriter, r *http.Request) {
 	`)
 
 	type Input struct {
-		Name   string
+		Name string
 	}
 	input := Input{}
 	err := json.Unmarshal(str, &input)

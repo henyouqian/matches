@@ -1,20 +1,20 @@
 package main
 
 import (
-	"net/http"
-	"time"
-	"github.com/garyburd/redigo/redis"
 	"encoding/json"
 	"fmt"
+	"github.com/garyburd/redigo/redis"
+	"net/http"
+	"time"
 )
 
 type Match struct {
-	Id uint32
-	Name string
-	GameId uint32
-	Begin int64
-	End int64
-	Sort string
+	Id        uint32
+	Name      string
+	GameId    uint32
+	Begin     int64
+	End       int64
+	Sort      string
 	TimeLimit uint32
 }
 
@@ -33,16 +33,16 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 
 	// input
 	type Input struct {
-		Name   string
-		GameId uint32
-		Begin  string
-		End    string
-		Sort   string
+		Name      string
+		GameId    uint32
+		Begin     string
+		End       string
+		Sort      string
 		TimeLimit uint32
 	}
 	input := Input{}
 	decodeRequestBody(r, &input)
-	
+
 	if input.Name == "" || input.Begin == "" || input.End == "" || input.GameId == 0 {
 		sendError("err_input", "Missing Name || Begin || End || Gameid")
 	}
@@ -62,7 +62,7 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 	beginUnix := begin.Unix()
 	endUnix := end.Unix()
 
-	if endUnix - beginUnix <= 60 {
+	if endUnix-beginUnix <= 60 {
 		sendError("err_input", "endUnix - beginUnix must > 60 seconds")
 	}
 	if time.Now().Unix() > endUnix {
@@ -117,7 +117,7 @@ func delMatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// input
-	matchIds := make([]interface{}, 0, 8)
+	matchIds := make([]int, 0, 8)
 	decodeRequestBody(r, &matchIds)
 
 	// redis
@@ -127,14 +127,29 @@ func delMatch(w http.ResponseWriter, r *http.Request) {
 	key := fmt.Sprintf("matchesInApp/%d", appid)
 	params := make([]interface{}, 0, 8)
 	params = append(params, key)
-	params = append(params, matchIds)
-	// rc.Send("zrem", matchIds ...)
-	// rc.Flush()
+	matchIdsItf := make([]interface{}, len(matchIds))
+	for i, v := range matchIds {
+		matchIdsItf[i] = v
+	}
+	params = append(params, matchIdsItf...)
+	rc.Send("zrem", params...)
+
+	keys := make([]interface{}, 0, 8)
+	for _, matchId := range matchIds {
+		key = fmt.Sprintf("matches/%d+%d", appid, matchId)
+		keys = append(keys, key)
+	}
+	rc.Send("del", keys...)
+	rc.Flush()
+
+	_, err = rc.Receive()
+	checkError(err, "")
+	delNum, err := rc.Receive()
+	checkError(err, "")
 
 	// reply
-	writeResponse(w, params)
+	writeResponse(w, delNum)
 }
-
 
 func listMatch(w http.ResponseWriter, r *http.Request) {
 	defer handleError(w)
@@ -157,7 +172,7 @@ func listMatch(w http.ResponseWriter, r *http.Request) {
 	key := fmt.Sprintf("matchesInApp/%d", appid)
 	matchIdValues, err := redis.Values(rc.Do("zrangebyscore", key, nowUnix, "+inf"))
 	checkError(err, "")
-	
+
 	matchKeys := make([]interface{}, 0, 10)
 	for _, v := range matchIdValues {
 		var id int
@@ -181,8 +196,24 @@ func listMatch(w http.ResponseWriter, r *http.Request) {
 	writeResponse(w, matches)
 }
 
+func startMatch(w http.ResponseWriter, r *http.Request) {
+	defer handleError(w)
+	checkMathod(r, "POST")
+
+	session, err := findSession(w, r)
+	checkError(err, "err_auth")
+
+	appid := session.Appid
+	if appid == 0 {
+		sendError("err_auth", "Please login with app secret")
+	}
+
+	writeResponse(w, 1)
+}
+
 func regMatch() {
 	http.HandleFunc("/match/new", newMatch)
 	http.HandleFunc("/match/del", delMatch)
 	http.HandleFunc("/match/list", listMatch)
+	http.HandleFunc("/match/start", startMatch)
 }

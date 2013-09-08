@@ -1,11 +1,11 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"github.com/golang/glog"
 	"net/http"
-	"flag"
 	"runtime"
-	"fmt"
 )
 
 func staticFile(w http.ResponseWriter, r *http.Request) {
@@ -26,8 +26,7 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// printlalalaTask()
-	
+
 	glog.Infof("Server running: cpu=%d, port=%d", runtime.NumCPU(), port)
 	glog.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
-

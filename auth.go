@@ -223,7 +223,7 @@ func newApp(w http.ResponseWriter, r *http.Request) {
 
 	// reply
 	type Reply struct {
-		Name string
+		Name   string
 		Secret string
 	}
 	reply := Reply{input.Name, secret}
@@ -243,7 +243,7 @@ func listApp(w http.ResponseWriter, r *http.Request) {
 	checkError(err, "")
 
 	type App struct {
-		Name string
+		Name   string
 		Secret string
 	}
 
@@ -271,7 +271,7 @@ func info(w http.ResponseWriter, r *http.Request) {
 
 	//
 	type Reply struct {
-		Session *Session
+		Session   *Session
 		UserToken string
 	}
 	reply := Reply{session, usertoken}

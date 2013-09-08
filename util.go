@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"github.com/garyburd/redigo/redis"
 	_ "github.com/go-sql-driver/mysql"
-	"net/http"
-	"time"
-	"github.com/nu7hatch/gouuid"
-	"runtime"
 	"github.com/golang/glog"
+	"github.com/nu7hatch/gouuid"
+	"net/http"
+	"runtime"
+	"time"
 )
 
 var redisPool *redis.Pool
@@ -41,7 +41,7 @@ func init() {
 }
 
 type Err struct {
-	Error string
+	Error       string
 	ErrorString string
 }
 
@@ -50,7 +50,7 @@ func handleError(w http.ResponseWriter) {
 		w.WriteHeader(http.StatusBadRequest)
 		encoder := json.NewEncoder(w)
 
-		var err Err;
+		var err Err
 		switch r.(type) {
 		case Err:
 			err = r.(Err)
@@ -99,7 +99,6 @@ func writeResponse(w http.ResponseWriter, v interface{}) {
 	encoder := json.NewEncoder(w)
 	encoder.Encode(v)
 }
-
 
 func opendb(dbname string) *sql.DB {
 	db, err := sql.Open("mysql", fmt.Sprintf("root@/%s?parseTime=true", dbname))
@@ -160,10 +159,9 @@ func repeatSingletonTask(key string, interval time.Duration, f func()) {
 	}
 }
 
-
 // just for test
 func printlalalaTask() {
-	printlalala := func () {
+	printlalala := func() {
 		fmt.Println("lalala")
 	}
 	go repeatSingletonTask("printlalala", 500*time.Millisecond, printlalala)

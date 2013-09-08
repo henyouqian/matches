@@ -76,7 +76,7 @@ function Controller($scope, $http) {
 				},{
 					"name": "del",
 					"method": "POST",
-					"data": [1, 2]
+					"data": [1]
 				},
 			] 
 		},
