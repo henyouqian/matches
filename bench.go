@@ -16,7 +16,7 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 		Password  string
 		Appsecret string
 	}
-	input := Input{Username: "aa", Password: "aa"}
+	input := Input{Username: "admin", Password: "admin"}
 
 	if input.Username == "" || input.Password == "" {
 		sendError("err_input", "")

@@ -71,6 +71,24 @@ function Controller($scope, $http) {
 			] 
 		},
 		{
+			"path":"game",
+			"apis":[
+				{
+					"name": "list",
+					"method": "POST",
+					"data": ""
+				},{
+					"name": "new",
+					"method": "POST",
+					"data": {"Name":"aa", "Sort":"DESC"}
+				},{
+					"name": "del",
+					"method": "POST",
+					"data": [1]
+				},
+			] 
+		},
+		{
 			"path":"match",
 			"apis":[
 				{

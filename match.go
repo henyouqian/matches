@@ -73,7 +73,7 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 	rc := redisPool.Get()
 	defer rc.Close()
 
-	matchId, err := redis.Int(rc.Do("incr", "matchIdAutoIncr"))
+	matchId, err := redis.Int(rc.Do("incr", "idGen/match"))
 	checkError(err, "")
 
 	match := Match{

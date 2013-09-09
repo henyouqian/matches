@@ -20,6 +20,7 @@ func main() {
 	http.HandleFunc("/static/", staticFile)
 
 	regAuth()
+	regGame()
 	regMatch()
 	regBench()
 
