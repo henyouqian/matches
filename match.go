@@ -4,19 +4,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/garyburd/redigo/redis"
+	"github.com/golang/glog"
 	"github.com/henyouqian/lwUtil"
 	"net/http"
 	"time"
 )
 
 type Match struct {
-	Id        uint32
-	Name      string
-	GameId    uint32
-	Begin     int64
-	End       int64
-	Sort      string
-	TimeLimit uint32
+	Id     uint32
+	Name   string
+	GameId uint32
+	Begin  int64
+	End    int64
+	Sort   string
 }
 
 func newMatch(w http.ResponseWriter, r *http.Request) {
@@ -34,12 +34,10 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 
 	// input
 	type Input struct {
-		Name      string
-		GameId    uint32
-		Begin     string
-		End       string
-		Sort      string
-		TimeLimit uint32
+		Name   string
+		GameId uint32
+		Begin  string
+		End    string
 	}
 	input := Input{}
 	lwutil.DecodeRequestBody(r, &input)
@@ -47,12 +45,10 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 	if input.Name == "" || input.Begin == "" || input.End == "" || input.GameId == 0 {
 		lwutil.SendError("err_input", "Missing Name || Begin || End || Gameid")
 	}
-	if input.Sort != "ASC" && input.Sort != "DESC" {
-		lwutil.SendError("err_input", "Invalid Sort, must be ASC or DESC")
-	}
-	if input.TimeLimit < 60 {
-		lwutil.SendError("err_input", "Time limit must > 60")
-	}
+
+	// game info
+	game, err := findGame(input.GameId, appid)
+	lwutil.CheckError(err, "err_game")
 
 	// times
 	const timeform = "2006-01-02 15:04:05"
@@ -83,15 +79,14 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 		input.GameId,
 		beginUnix,
 		endUnix,
-		input.Sort,
-		input.TimeLimit,
+		game.Sort,
 	}
 
 	matchJson, err := json.Marshal(match)
 	lwutil.CheckError(err, "")
 
-	key := fmt.Sprintf("matches/%d+%d", appid, matchId)
-	rc.Send("set", key, matchJson)
+	key := fmt.Sprintf("%d+%d", appid, matchId)
+	rc.Send("hset", "matches", key, matchJson)
 	key = fmt.Sprintf("matchesInApp/%d", appid)
 	rc.Send("zadd", key, endUnix, matchId)
 	rc.Flush()
@@ -135,12 +130,13 @@ func delMatch(w http.ResponseWriter, r *http.Request) {
 	params = append(params, matchIdsItf...)
 	rc.Send("zrem", params...)
 
-	keys := make([]interface{}, 0, 8)
-	for _, matchId := range matchIds {
-		key = fmt.Sprintf("matches/%d+%d", appid, matchId)
-		keys = append(keys, key)
+	args := make([]interface{}, len(matchIds)+1)
+	args[0] = "matches"
+	for i, matchId := range matchIds {
+		key = fmt.Sprintf("%d+%d", appid, matchId)
+		args[i+1] = key
 	}
-	rc.Send("del", keys...)
+	rc.Send("hdel", args...)
 	rc.Flush()
 
 	_, err = rc.Receive()
@@ -174,24 +170,26 @@ func listMatch(w http.ResponseWriter, r *http.Request) {
 	matchIdValues, err := redis.Values(rc.Do("zrangebyscore", key, nowUnix, "+inf"))
 	lwutil.CheckError(err, "")
 
-	matchKeys := make([]interface{}, 0, 10)
-	for _, v := range matchIdValues {
+	args := make([]interface{}, len(matchIdValues)+1)
+	args[0] = "matches"
+	for i, v := range matchIdValues {
 		var id int
 		id, err := redis.Int(v, err)
 		lwutil.CheckError(err, "")
-		matchkey := fmt.Sprintf("matches/%d+%d", appid, id)
-		matchKeys = append(matchKeys, matchkey)
+		matchkey := fmt.Sprintf("%d+%d", appid, id)
+		args[i+1] = matchkey
 	}
 
 	// get match data
-	matchesValues, err := redis.Values(rc.Do("mget", matchKeys...))
+	matchesValues, err := redis.Values(rc.Do("hmget", args...))
 
-	matches := make([]interface{}, 0, 10)
-	for _, v := range matchesValues {
+	matches := make([]interface{}, len(matchesValues))
+
+	for i, v := range matchesValues {
 		var match interface{}
 		err = json.Unmarshal(v.([]byte), &match)
 		lwutil.CheckError(err, "")
-		matches = append(matches, match)
+		matches[i] = match
 	}
 
 	lwutil.WriteResponse(w, matches)
@@ -209,7 +207,58 @@ func startMatch(w http.ResponseWriter, r *http.Request) {
 		lwutil.SendError("err_auth", "Please login with app secret")
 	}
 
-	lwutil.WriteResponse(w, 1)
+	// input
+	type input struct {
+		MatchId uint32
+	}
+	var in input
+	lwutil.DecodeRequestBody(r, &in)
+
+	// redis setup
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	// get match info
+	key := fmt.Sprintf("%d+%d", appid, in.MatchId)
+	matchJson, err := redis.Bytes(rc.Do("hget", "matches", key))
+	lwutil.CheckError(err, "err_not_found")
+
+	var match Match
+	err = json.Unmarshal(matchJson, &match)
+	lwutil.CheckError(err, "")
+
+	// check time
+	now := time.Now().Unix()
+	if now < match.Begin || now >= match.End {
+		lwutil.SendError("err_time", "now < match.Begin || now >= match.End")
+	}
+
+	// played?
+	keyFail := fmt.Sprintf("failboard/%d", in.MatchId)
+	rc.Send("zscore", fmt.Sprintf("leaderboard/%d", in.MatchId), session.Userid)
+	rc.Send("sismember", keyFail, session.Userid)
+	rc.Flush()
+	lbScore, err := rc.Receive()
+	lwutil.CheckError(err, "")
+	inFail, err := redis.Int(rc.Receive())
+	lwutil.CheckError(err, "")
+
+	glog.Infoln(lbScore, inFail)
+	if lbScore != nil || inFail != 0 {
+		lwutil.SendError("err_no_try", "no try left")
+	}
+
+	// add to failboard
+	_, err = rc.Do("sadd", keyFail, session.Userid)
+	lwutil.CheckError(err, "")
+
+	// new try secret
+	trySecret := lwutil.GenUUID()
+	_, err = rc.Do("setex", fmt.Sprintf("trySecrets/%s", trySecret), MATCH_TRY_DURATION, in.MatchId)
+	lwutil.CheckError(err, "")
+
+	// reply
+	lwutil.WriteResponse(w, trySecret)
 }
 
 func regMatch() {

@@ -14,6 +14,24 @@ type Game struct {
 	Sort string
 }
 
+func findGame(gameid, appid uint32) (*Game, error) {
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	key := fmt.Sprintf("games/%d", appid)
+	gameJson, err := redis.Bytes(rc.Do("hget", key, gameid))
+	if err != nil {
+		return nil, err
+	}
+
+	var game Game
+	err = json.Unmarshal(gameJson, &game)
+	if err != nil {
+		return nil, err
+	}
+	return &game, nil
+}
+
 func newGame(w http.ResponseWriter, r *http.Request) {
 	defer lwutil.HandleError(w)
 	lwutil.CheckMathod(r, "POST")
@@ -29,14 +47,15 @@ func newGame(w http.ResponseWriter, r *http.Request) {
 
 	// input
 	type Input struct {
+		Id   uint32
 		Name string
 		Sort string
 	}
 	input := Input{}
 	lwutil.DecodeRequestBody(r, &input)
 
-	if input.Name == "" {
-		lwutil.SendError("err_input", "Missing Name")
+	if input.Id == 0 || input.Name == "" {
+		lwutil.SendError("err_input", "Missing Id or Name")
 	}
 	if input.Sort != "ASC" && input.Sort != "DESC" {
 		lwutil.SendError("err_input", "Invalid Sort, must be ASC or DESC")
@@ -46,11 +65,8 @@ func newGame(w http.ResponseWriter, r *http.Request) {
 	rc := redisPool.Get()
 	defer rc.Close()
 
-	gameId, err := redis.Int(rc.Do("incr", "idGen/game"))
-	lwutil.CheckError(err, "")
-
 	game := Game{
-		uint32(gameId),
+		input.Id,
 		input.Name,
 		input.Sort,
 	}
@@ -59,7 +75,7 @@ func newGame(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckError(err, "")
 
 	key := fmt.Sprintf("games/%d", appid)
-	_, err = rc.Do("hset", key, gameId, gameJson)
+	_, err = rc.Do("hset", key, input.Id, gameJson)
 	lwutil.CheckError(err, "")
 
 	// reply

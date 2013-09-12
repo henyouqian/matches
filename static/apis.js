@@ -80,7 +80,7 @@ function Controller($scope, $http) {
 				},{
 					"name": "new",
 					"method": "POST",
-					"data": {"Name":"aa", "Sort":"DESC"}
+					"data": {"Id":1, "Name":"aa", "Sort":"DESC"}
 				},{
 					"name": "del",
 					"method": "POST",
@@ -98,11 +98,15 @@ function Controller($scope, $http) {
 				},{
 					"name": "new",
 					"method": "POST",
-					"data": {"Name":"aa", "Gameid":1, "Begin":"2006-01-02 15:04:05", "End":"2014-01-02 15:04:05", "Sort":"DESC", "TimeLimit":300}
+					"data": {"Name":"aa", "Gameid":1, "Begin":"2006-01-02 15:04:05", "End":"2014-01-02 15:04:05"}
 				},{
 					"name": "del",
 					"method": "POST",
 					"data": [1]
+				},{
+					"name": "start",
+					"method": "POST",
+					"data": {"MatchId":1}
 				},
 			] 
 		},
