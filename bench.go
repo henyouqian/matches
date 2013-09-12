@@ -3,12 +3,13 @@ package main
 import (
 	"encoding/json"
 	"github.com/garyburd/redigo/redis"
+	"github.com/henyouqian/lwUtil"
 	"net/http"
 )
 
 func benchLogin(w http.ResponseWriter, r *http.Request) {
-	defer handleError(w)
-	checkMathod(r, "GET")
+	defer lwutil.HandleError(w)
+	lwutil.CheckMathod(r, "GET")
 
 	// input
 	type Input struct {
@@ -19,23 +20,23 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 	input := Input{Username: "admin", Password: "admin"}
 
 	if input.Username == "" || input.Password == "" {
-		sendError("err_input", "")
+		lwutil.SendError("err_input", "")
 	}
 
-	pwsha := sha224(input.Password + passwordSalt)
+	pwsha := lwutil.Sha224(input.Password + passwordSalt)
 
 	// get userid
 	row := authDB.QueryRow("SELECT id FROM user_accounts WHERE username=? AND password=?", input.Username, pwsha)
 	var userid uint64
 	err := row.Scan(&userid)
-	checkError(err, "")
+	lwutil.CheckError(err, "")
 
 	// get appid
 	appid := uint32(0)
 	if input.Appsecret != "" {
 		row = authDB.QueryRow("SELECT id FROM apps WHERE secret=?", input.Appsecret)
 		err = row.Scan(&appid)
-		checkError(err, "")
+		lwutil.CheckError(err, "")
 	}
 
 	// new session
@@ -43,7 +44,7 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 	defer rc.Close()
 
 	usertoken, err := newSession(w, rc, userid, input.Username, appid)
-	checkError(err, "")
+	lwutil.CheckError(err, "")
 
 	// reply
 	type Reply struct {
@@ -51,74 +52,74 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 		Appid     uint32
 	}
 	reply := Reply{usertoken, appid}
-	writeResponse(w, reply)
+	lwutil.WriteResponse(w, reply)
 }
 
 func benchHello(w http.ResponseWriter, r *http.Request) {
-	writeResponse(w, "hello")
+	lwutil.WriteResponse(w, "hello")
 }
 
 func benchDBSingleSelect(w http.ResponseWriter, r *http.Request) {
-	defer handleError(w)
-	checkMathod(r, "GET")
+	defer lwutil.HandleError(w)
+	lwutil.CheckMathod(r, "GET")
 
 	row := authDB.QueryRow("SELECT id FROM user_accounts WHERE username=?", "admin")
 	var userid uint32
 	err := row.Scan(&userid)
-	checkError(err, "")
+	lwutil.CheckError(err, "")
 
-	writeResponse(w, userid)
+	lwutil.WriteResponse(w, userid)
 }
 
 const insertCount = 10
 
 func benchDBInsert(w http.ResponseWriter, r *http.Request) {
-	defer handleError(w)
-	checkMathod(r, "GET")
+	defer lwutil.HandleError(w)
+	lwutil.CheckMathod(r, "GET")
 
 	//db
 	stmt, err := matchDB.Prepare("INSERT INTO insertTest (a, b, c, d) VALUES (?, ?, ?, ?)")
-	checkError(err, "")
+	lwutil.CheckError(err, "")
 
 	ids := make([]int64, insertCount)
 	for i := 0; i < insertCount; i++ {
 		res, err := stmt.Exec(1, 2, 3, 4)
-		checkError(err, "err_account_exists")
+		lwutil.CheckError(err, "err_account_exists")
 
 		ids[i], err = res.LastInsertId()
-		checkError(err, "")
+		lwutil.CheckError(err, "")
 	}
 
-	writeResponse(w, ids)
+	lwutil.WriteResponse(w, ids)
 }
 
 func benchDBInsertTx(w http.ResponseWriter, r *http.Request) {
-	defer handleError(w)
-	checkMathod(r, "GET")
+	defer lwutil.HandleError(w)
+	lwutil.CheckMathod(r, "GET")
 
 	//db
 	tx, err := matchDB.Begin()
-	defer endTx(tx, &err)
+	defer lwutil.EndTx(tx, &err)
 
-	checkError(err, "")
+	lwutil.CheckError(err, "")
 	stmt, err := tx.Prepare("INSERT INTO insertTest (a, b, c, d) VALUES (?, ?, ?, ?)")
-	checkError(err, "")
+	lwutil.CheckError(err, "")
 
 	ids := make([]int64, insertCount)
 	for i := 0; i < insertCount; i++ {
 		res, err := stmt.Exec(1, 2, 3, 4)
-		checkError(err, "err_account_exists")
+		lwutil.CheckError(err, "err_account_exists")
 
 		ids[i], err = res.LastInsertId()
-		checkError(err, "")
+		lwutil.CheckError(err, "")
 	}
 
-	writeResponse(w, ids)
+	lwutil.WriteResponse(w, ids)
 }
 
 func benchRedisGet(w http.ResponseWriter, r *http.Request) {
-	defer handleError(w)
-	checkMathod(r, "GET")
+	defer lwutil.HandleError(w)
+	lwutil.CheckMathod(r, "GET")
 
 	rc := redisPool.Get()
 	defer rc.Close()
@@ -128,17 +129,17 @@ func benchRedisGet(w http.ResponseWriter, r *http.Request) {
 	rc.Flush()
 	rc.Receive()
 	foo, err := redis.String(rc.Receive())
-	checkError(err, "")
+	lwutil.CheckError(err, "")
 
 	// foo, err := redis.String(rc.Do("get", "foo"))
-	// checkError(err, "")
+	// lwutil.CheckError(err, "")
 
-	writeResponse(w, foo)
+	lwutil.WriteResponse(w, foo)
 }
 
 func benchJson(w http.ResponseWriter, r *http.Request) {
-	defer handleError(w)
-	checkMathod(r, "GET")
+	defer lwutil.HandleError(w)
+	lwutil.CheckMathod(r, "GET")
 
 	str := []byte(`
 		{
@@ -159,14 +160,14 @@ func benchJson(w http.ResponseWriter, r *http.Request) {
 	}
 	input := Input{}
 	err := json.Unmarshal(str, &input)
-	checkError(err, "")
+	lwutil.CheckError(err, "")
 
-	writeResponse(w, input)
+	lwutil.WriteResponse(w, input)
 }
 
 func benchJson2(w http.ResponseWriter, r *http.Request) {
-	defer handleError(w)
-	checkMathod(r, "GET")
+	defer lwutil.HandleError(w)
+	lwutil.CheckMathod(r, "GET")
 
 	str := []byte(`
 		{
@@ -179,9 +180,9 @@ func benchJson2(w http.ResponseWriter, r *http.Request) {
 	}
 	input := Input{}
 	err := json.Unmarshal(str, &input)
-	checkError(err, "")
+	lwutil.CheckError(err, "")
 
-	writeResponse(w, input)
+	lwutil.WriteResponse(w, input)
 }
 
 func regBench() {

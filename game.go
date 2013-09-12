@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/garyburd/redigo/redis"
+	"github.com/henyouqian/lwUtil"
 	"net/http"
 )
 
@@ -14,16 +15,16 @@ type Game struct {
 }
 
 func newGame(w http.ResponseWriter, r *http.Request) {
-	defer handleError(w)
-	checkMathod(r, "POST")
+	defer lwutil.HandleError(w)
+	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	checkError(err, "err_auth")
+	lwutil.CheckError(err, "err_auth")
 	checkAdmin(session)
 
 	appid := session.Appid
 	if appid == 0 {
-		sendError("err_auth", "Please login with app secret")
+		lwutil.SendError("err_auth", "Please login with app secret")
 	}
 
 	// input
@@ -32,13 +33,13 @@ func newGame(w http.ResponseWriter, r *http.Request) {
 		Sort string
 	}
 	input := Input{}
-	decodeRequestBody(r, &input)
+	lwutil.DecodeRequestBody(r, &input)
 
 	if input.Name == "" {
-		sendError("err_input", "Missing Name")
+		lwutil.SendError("err_input", "Missing Name")
 	}
 	if input.Sort != "ASC" && input.Sort != "DESC" {
-		sendError("err_input", "Invalid Sort, must be ASC or DESC")
+		lwutil.SendError("err_input", "Invalid Sort, must be ASC or DESC")
 	}
 
 	//
@@ -46,7 +47,7 @@ func newGame(w http.ResponseWriter, r *http.Request) {
 	defer rc.Close()
 
 	gameId, err := redis.Int(rc.Do("incr", "idGen/game"))
-	checkError(err, "")
+	lwutil.CheckError(err, "")
 
 	game := Game{
 		uint32(gameId),
@@ -55,111 +56,87 @@ func newGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	gameJson, err := json.Marshal(game)
-	checkError(err, "")
+	lwutil.CheckError(err, "")
 
 	key := fmt.Sprintf("games/%d", appid)
 	_, err = rc.Do("hset", key, gameId, gameJson)
-	checkError(err, "")
+	lwutil.CheckError(err, "")
 
 	// reply
-	writeResponse(w, game)
+	lwutil.WriteResponse(w, game)
 }
 
-//func delGame(w http.ResponseWriter, r *http.Request) {
-//	defer handleError(w)
-//	checkMathod(r, "POST")
+func delGame(w http.ResponseWriter, r *http.Request) {
+	defer lwutil.HandleError(w)
+	lwutil.CheckMathod(r, "POST")
 
-//	session, err := findSession(w, r)
-//	checkError(err, "err_auth")
-//	checkAdmin(session)
+	session, err := findSession(w, r)
+	lwutil.CheckError(err, "err_auth")
+	checkAdmin(session)
 
-//	appid := session.Appid
-//	if appid == 0 {
-//		sendError("err_auth", "Please login with app secret")
-//	}
+	appid := session.Appid
+	if appid == 0 {
+		lwutil.SendError("err_auth", "Please login with app secret")
+	}
 
-//	// input
-//	matchIds := make([]int, 0, 8)
-//	decodeRequestBody(r, &matchIds)
+	// input
+	gameIds := make([]int, 0, 8)
+	lwutil.DecodeRequestBody(r, &gameIds)
 
-//	// redis
-//	rc := redisPool.Get()
-//	defer rc.Close()
+	// redis
+	rc := redisPool.Get()
+	defer rc.Close()
 
-//	key := fmt.Sprintf("matchesInApp/%d", appid)
-//	params := make([]interface{}, 0, 8)
-//	params = append(params, key)
-//	matchIdsItf := make([]interface{}, len(matchIds))
-//	for i, v := range matchIds {
-//		matchIdsItf[i] = v
-//	}
-//	params = append(params, matchIdsItf...)
-//	rc.Send("zrem", params...)
+	args := make([]interface{}, 1, 8)
+	args[0] = fmt.Sprintf("games/%d", appid)
+	for _, gameId := range gameIds {
+		args = append(args, gameId)
+	}
 
-//	keys := make([]interface{}, 0, 8)
-//	for _, matchId := range matchIds {
-//		key = fmt.Sprintf("matches/%d+%d", appid, matchId)
-//		keys = append(keys, key)
-//	}
-//	rc.Send("del", keys...)
-//	rc.Flush()
+	delNum, err := redis.Int(rc.Do("hdel", args...))
+	lwutil.CheckError(err, "")
 
-//	_, err = rc.Receive()
-//	checkError(err, "")
-//	delNum, err := rc.Receive()
-//	checkError(err, "")
+	// reply
+	lwutil.WriteResponse(w, delNum)
+}
 
-//	// reply
-//	writeResponse(w, delNum)
-//}
+func listGame(w http.ResponseWriter, r *http.Request) {
+	defer lwutil.HandleError(w)
+	lwutil.CheckMathod(r, "POST")
 
-//func listMatch(w http.ResponseWriter, r *http.Request) {
-//	defer handleError(w)
-//	checkMathod(r, "POST")
+	session, err := findSession(w, r)
+	lwutil.CheckError(err, "err_auth")
 
-//	session, err := findSession(w, r)
-//	checkError(err, "err_auth")
+	appid := session.Appid
+	if appid == 0 {
+		lwutil.SendError("err_auth", "Please login with app secret")
+	}
 
-//	appid := session.Appid
-//	if appid == 0 {
-//		sendError("err_auth", "Please login with app secret")
-//	}
+	// redis
+	rc := redisPool.Get()
+	defer rc.Close()
 
-//	nowUnix := time.Now().Unix()
+	// get game data
+	gameValues, err := redis.Values(rc.Do("hgetall", fmt.Sprintf("games/%d", appid)))
+	lwutil.CheckError(err, "")
 
-//	rc := redisPool.Get()
-//	defer rc.Close()
+	games := make([]interface{}, 0, len(gameValues)/2)
+	for i, v := range gameValues {
+		if i%2 == 0 {
+			continue
+		}
+		var game interface{}
+		err = json.Unmarshal(v.([]byte), &game)
+		lwutil.CheckError(err, "")
+		games = append(games, game)
+	}
 
-//	// get matchIds
-//	key := fmt.Sprintf("matchesInApp/%d", appid)
-//	matchIdValues, err := redis.Values(rc.Do("zrangebyscore", key, nowUnix, "+inf"))
-//	checkError(err, "")
-
-//	matchKeys := make([]interface{}, 0, 10)
-//	for _, v := range matchIdValues {
-//		var id int
-//		id, err := redis.Int(v, err)
-//		checkError(err, "")
-//		matchkey := fmt.Sprintf("matches/%d+%d", appid, id)
-//		matchKeys = append(matchKeys, matchkey)
-//	}
-
-//	// get match data
-//	matchesValues, err := redis.Values(rc.Do("mget", matchKeys...))
-
-//	matches := make([]interface{}, 0, 10)
-//	for _, v := range matchesValues {
-//		var match interface{}
-//		err = json.Unmarshal(v.([]byte), &match)
-//		checkError(err, "")
-//		matches = append(matches, match)
-//	}
-
-//	writeResponse(w, matches)
-//}
+	//reply
+	lwutil.WriteResponse(w, games)
+}
 
 func regGame() {
 	http.HandleFunc("/game/new", newGame)
-	//http.HandleFunc("/game/del", delGame)
-	//http.HandleFunc("/game/list", listGame)
+	http.HandleFunc("/game/del", delGame)
+	http.HandleFunc("/game/list", listGame)
 }

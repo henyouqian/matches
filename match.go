@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/garyburd/redigo/redis"
+	"github.com/henyouqian/lwUtil"
 	"net/http"
 	"time"
 )
@@ -19,16 +20,16 @@ type Match struct {
 }
 
 func newMatch(w http.ResponseWriter, r *http.Request) {
-	defer handleError(w)
-	checkMathod(r, "POST")
+	defer lwutil.HandleError(w)
+	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	checkError(err, "err_auth")
+	lwutil.CheckError(err, "err_auth")
 	checkAdmin(session)
 
 	appid := session.Appid
 	if appid == 0 {
-		sendError("err_auth", "Please login with app secret")
+		lwutil.SendError("err_auth", "Please login with app secret")
 	}
 
 	// input
@@ -41,32 +42,32 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 		TimeLimit uint32
 	}
 	input := Input{}
-	decodeRequestBody(r, &input)
+	lwutil.DecodeRequestBody(r, &input)
 
 	if input.Name == "" || input.Begin == "" || input.End == "" || input.GameId == 0 {
-		sendError("err_input", "Missing Name || Begin || End || Gameid")
+		lwutil.SendError("err_input", "Missing Name || Begin || End || Gameid")
 	}
 	if input.Sort != "ASC" && input.Sort != "DESC" {
-		sendError("err_input", "Invalid Sort, must be ASC or DESC")
+		lwutil.SendError("err_input", "Invalid Sort, must be ASC or DESC")
 	}
 	if input.TimeLimit < 60 {
-		sendError("err_input", "Time limit must > 60")
+		lwutil.SendError("err_input", "Time limit must > 60")
 	}
 
 	// times
 	const timeform = "2006-01-02 15:04:05"
 	begin, err := time.ParseInLocation(timeform, input.Begin, time.Local)
-	checkError(err, "err_shit")
+	lwutil.CheckError(err, "err_shit")
 	end, err := time.ParseInLocation(timeform, input.End, time.Local)
-	checkError(err, "")
+	lwutil.CheckError(err, "")
 	beginUnix := begin.Unix()
 	endUnix := end.Unix()
 
 	if endUnix-beginUnix <= 60 {
-		sendError("err_input", "endUnix - beginUnix must > 60 seconds")
+		lwutil.SendError("err_input", "endUnix - beginUnix must > 60 seconds")
 	}
 	if time.Now().Unix() > endUnix {
-		sendError("err_input", "end time before now")
+		lwutil.SendError("err_input", "end time before now")
 	}
 
 	//
@@ -74,7 +75,7 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 	defer rc.Close()
 
 	matchId, err := redis.Int(rc.Do("incr", "idGen/match"))
-	checkError(err, "")
+	lwutil.CheckError(err, "")
 
 	match := Match{
 		uint32(matchId),
@@ -87,7 +88,7 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	matchJson, err := json.Marshal(match)
-	checkError(err, "")
+	lwutil.CheckError(err, "")
 
 	key := fmt.Sprintf("matches/%d+%d", appid, matchId)
 	rc.Send("set", key, matchJson)
@@ -96,29 +97,29 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 	rc.Flush()
 	for i := 0; i < 2; i++ {
 		_, err = rc.Receive()
-		checkError(err, "")
+		lwutil.CheckError(err, "")
 	}
 
 	// reply
-	writeResponse(w, match)
+	lwutil.WriteResponse(w, match)
 }
 
 func delMatch(w http.ResponseWriter, r *http.Request) {
-	defer handleError(w)
-	checkMathod(r, "POST")
+	defer lwutil.HandleError(w)
+	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	checkError(err, "err_auth")
+	lwutil.CheckError(err, "err_auth")
 	checkAdmin(session)
 
 	appid := session.Appid
 	if appid == 0 {
-		sendError("err_auth", "Please login with app secret")
+		lwutil.SendError("err_auth", "Please login with app secret")
 	}
 
 	// input
 	matchIds := make([]int, 0, 8)
-	decodeRequestBody(r, &matchIds)
+	lwutil.DecodeRequestBody(r, &matchIds)
 
 	// redis
 	rc := redisPool.Get()
@@ -143,24 +144,24 @@ func delMatch(w http.ResponseWriter, r *http.Request) {
 	rc.Flush()
 
 	_, err = rc.Receive()
-	checkError(err, "")
+	lwutil.CheckError(err, "")
 	delNum, err := rc.Receive()
-	checkError(err, "")
+	lwutil.CheckError(err, "")
 
 	// reply
-	writeResponse(w, delNum)
+	lwutil.WriteResponse(w, delNum)
 }
 
 func listMatch(w http.ResponseWriter, r *http.Request) {
-	defer handleError(w)
-	checkMathod(r, "POST")
+	defer lwutil.HandleError(w)
+	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	checkError(err, "err_auth")
+	lwutil.CheckError(err, "err_auth")
 
 	appid := session.Appid
 	if appid == 0 {
-		sendError("err_auth", "Please login with app secret")
+		lwutil.SendError("err_auth", "Please login with app secret")
 	}
 
 	nowUnix := time.Now().Unix()
@@ -171,13 +172,13 @@ func listMatch(w http.ResponseWriter, r *http.Request) {
 	// get matchIds
 	key := fmt.Sprintf("matchesInApp/%d", appid)
 	matchIdValues, err := redis.Values(rc.Do("zrangebyscore", key, nowUnix, "+inf"))
-	checkError(err, "")
+	lwutil.CheckError(err, "")
 
 	matchKeys := make([]interface{}, 0, 10)
 	for _, v := range matchIdValues {
 		var id int
 		id, err := redis.Int(v, err)
-		checkError(err, "")
+		lwutil.CheckError(err, "")
 		matchkey := fmt.Sprintf("matches/%d+%d", appid, id)
 		matchKeys = append(matchKeys, matchkey)
 	}
@@ -189,26 +190,26 @@ func listMatch(w http.ResponseWriter, r *http.Request) {
 	for _, v := range matchesValues {
 		var match interface{}
 		err = json.Unmarshal(v.([]byte), &match)
-		checkError(err, "")
+		lwutil.CheckError(err, "")
 		matches = append(matches, match)
 	}
 
-	writeResponse(w, matches)
+	lwutil.WriteResponse(w, matches)
 }
 
 func startMatch(w http.ResponseWriter, r *http.Request) {
-	defer handleError(w)
-	checkMathod(r, "POST")
+	defer lwutil.HandleError(w)
+	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	checkError(err, "err_auth")
+	lwutil.CheckError(err, "err_auth")
 
 	appid := session.Appid
 	if appid == 0 {
-		sendError("err_auth", "Please login with app secret")
+		lwutil.SendError("err_auth", "Please login with app secret")
 	}
 
-	writeResponse(w, 1)
+	lwutil.WriteResponse(w, 1)
 }
 
 func regMatch() {
