@@ -235,7 +235,8 @@ func startMatch(w http.ResponseWriter, r *http.Request) {
 
 	// played?
 	keyFail := fmt.Sprintf("failboard/%d", in.MatchId)
-	rc.Send("zscore", fmt.Sprintf("leaderboard/%d", in.MatchId), session.Userid)
+	keyLeaderboard := fmt.Sprintf("leaderboard/%d", in.MatchId)
+	rc.Send("zscore", keyLeaderboard, session.Userid)
 	rc.Send("sismember", keyFail, session.Userid)
 	rc.Flush()
 	lbScore, err := rc.Receive()
@@ -261,9 +262,54 @@ func startMatch(w http.ResponseWriter, r *http.Request) {
 	lwutil.WriteResponse(w, trySecret)
 }
 
+func addScore(w http.ResponseWriter, r *http.Request) {
+	defer lwutil.HandleError(w)
+	lwutil.CheckMathod(r, "POST")
+
+	session, err := findSession(w, r)
+	lwutil.CheckError(err, "err_auth")
+
+	//appid := session.Appid
+	//if appid == 0 {
+	//	lwutil.SendError("err_auth", "Please login with app secret")
+	//}
+
+	// input
+	type input struct {
+		TrySecret string
+		Score     int64
+	}
+	var in input
+	lwutil.DecodeRequestBody(r, &in)
+
+	// redis setup
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	// use secret to get matchId
+	matchIdRaw, err := rc.Do("get", fmt.Sprintf("trySecrets/%s", in.TrySecret))
+	lwutil.CheckError(err, "")
+	if matchIdRaw == nil {
+		lwutil.SendError("err_secret", "")
+	}
+	matchId, err := redis.Int(matchIdRaw, err)
+	lwutil.CheckError(err, "")
+
+	// del from failboard and add to leaderboard
+	keyFail := fmt.Sprintf("failboard/%d", matchId)
+	keyLeaderboard := fmt.Sprintf("leaderboard/%d", matchId)
+	rc.Send("srem", keyFail, session.Userid)
+	// fixme: use
+	rc.Send("zadd", keyLeaderboard, in.Score, session.Userid)
+
+	// reply
+	lwutil.WriteResponse(w, matchId)
+}
+
 func regMatch() {
 	http.HandleFunc("/match/new", newMatch)
 	http.HandleFunc("/match/del", delMatch)
 	http.HandleFunc("/match/list", listMatch)
 	http.HandleFunc("/match/start", startMatch)
+	http.HandleFunc("/match/addscore", addScore)
 }

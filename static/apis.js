@@ -107,6 +107,10 @@ function Controller($scope, $http) {
 					"name": "start",
 					"method": "POST",
 					"data": {"MatchId":1}
+				},{
+					"name": "addscore",
+					"method": "POST",
+					"data": {"TrySecret":"xxxyyyzzz", "Score":12345}
 				},
 			] 
 		},
