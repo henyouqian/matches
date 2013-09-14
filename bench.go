@@ -3,12 +3,12 @@ package main
 import (
 	"encoding/json"
 	"github.com/garyburd/redigo/redis"
+	//"github.com/golang/glog"
 	"github.com/henyouqian/lwUtil"
 	"net/http"
 )
 
 func benchLogin(w http.ResponseWriter, r *http.Request) {
-	defer lwutil.HandleError(w)
 	lwutil.CheckMathod(r, "GET")
 
 	// input
@@ -29,14 +29,14 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 	row := authDB.QueryRow("SELECT id FROM user_accounts WHERE username=? AND password=?", input.Username, pwsha)
 	var userid uint64
 	err := row.Scan(&userid)
-	lwutil.CheckError(err, "")
+	lwutil.CheckError("", err)
 
 	// get appid
 	appid := uint32(0)
 	if input.Appsecret != "" {
 		row = authDB.QueryRow("SELECT id FROM apps WHERE secret=?", input.Appsecret)
 		err = row.Scan(&appid)
-		lwutil.CheckError(err, "")
+		lwutil.CheckError("", err)
 	}
 
 	// new session
@@ -44,7 +44,7 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 	defer rc.Close()
 
 	usertoken, err := newSession(w, rc, userid, input.Username, appid)
-	lwutil.CheckError(err, "")
+	lwutil.CheckError("", err)
 
 	// reply
 	type Reply struct {
@@ -60,13 +60,12 @@ func benchHello(w http.ResponseWriter, r *http.Request) {
 }
 
 func benchDBSingleSelect(w http.ResponseWriter, r *http.Request) {
-	defer lwutil.HandleError(w)
 	lwutil.CheckMathod(r, "GET")
 
 	row := authDB.QueryRow("SELECT id FROM user_accounts WHERE username=?", "admin")
 	var userid uint32
 	err := row.Scan(&userid)
-	lwutil.CheckError(err, "")
+	lwutil.CheckError("", err)
 
 	lwutil.WriteResponse(w, userid)
 }
@@ -74,51 +73,48 @@ func benchDBSingleSelect(w http.ResponseWriter, r *http.Request) {
 const insertCount = 10
 
 func benchDBInsert(w http.ResponseWriter, r *http.Request) {
-	defer lwutil.HandleError(w)
 	lwutil.CheckMathod(r, "GET")
 
 	//db
 	stmt, err := matchDB.Prepare("INSERT INTO insertTest (a, b, c, d) VALUES (?, ?, ?, ?)")
-	lwutil.CheckError(err, "")
+	lwutil.CheckError("", err)
 
 	ids := make([]int64, insertCount)
 	for i := 0; i < insertCount; i++ {
 		res, err := stmt.Exec(1, 2, 3, 4)
-		lwutil.CheckError(err, "err_account_exists")
+		lwutil.CheckError("err_account_exists", err)
 
 		ids[i], err = res.LastInsertId()
-		lwutil.CheckError(err, "")
+		lwutil.CheckError("", err)
 	}
 
 	lwutil.WriteResponse(w, ids)
 }
 
 func benchDBInsertTx(w http.ResponseWriter, r *http.Request) {
-	defer lwutil.HandleError(w)
 	lwutil.CheckMathod(r, "GET")
 
 	//db
 	tx, err := matchDB.Begin()
 	defer lwutil.EndTx(tx, &err)
 
-	lwutil.CheckError(err, "")
+	lwutil.CheckError("", err)
 	stmt, err := tx.Prepare("INSERT INTO insertTest (a, b, c, d) VALUES (?, ?, ?, ?)")
-	lwutil.CheckError(err, "")
+	lwutil.CheckError("", err)
 
 	ids := make([]int64, insertCount)
 	for i := 0; i < insertCount; i++ {
 		res, err := stmt.Exec(1, 2, 3, 4)
-		lwutil.CheckError(err, "err_account_exists")
+		lwutil.CheckError("err_account_exists", err)
 
 		ids[i], err = res.LastInsertId()
-		lwutil.CheckError(err, "")
+		lwutil.CheckError("", err)
 	}
 
 	lwutil.WriteResponse(w, ids)
 }
 
 func benchRedisGet(w http.ResponseWriter, r *http.Request) {
-	defer lwutil.HandleError(w)
 	lwutil.CheckMathod(r, "GET")
 
 	rc := redisPool.Get()
@@ -129,16 +125,15 @@ func benchRedisGet(w http.ResponseWriter, r *http.Request) {
 	rc.Flush()
 	rc.Receive()
 	foo, err := redis.String(rc.Receive())
-	lwutil.CheckError(err, "")
+	lwutil.CheckError("", err)
 
 	// foo, err := redis.String(rc.Do("get", "foo"))
-	// lwutil.CheckError(err, "")
+	// lwutil.CheckError("", err)
 
 	lwutil.WriteResponse(w, foo)
 }
 
 func benchJson(w http.ResponseWriter, r *http.Request) {
-	defer lwutil.HandleError(w)
 	lwutil.CheckMathod(r, "GET")
 
 	str := []byte(`
@@ -160,13 +155,12 @@ func benchJson(w http.ResponseWriter, r *http.Request) {
 	}
 	input := Input{}
 	err := json.Unmarshal(str, &input)
-	lwutil.CheckError(err, "")
+	lwutil.CheckError("", err)
 
 	lwutil.WriteResponse(w, input)
 }
 
 func benchJson2(w http.ResponseWriter, r *http.Request) {
-	defer lwutil.HandleError(w)
 	lwutil.CheckMathod(r, "GET")
 
 	str := []byte(`
@@ -180,18 +174,18 @@ func benchJson2(w http.ResponseWriter, r *http.Request) {
 	}
 	input := Input{}
 	err := json.Unmarshal(str, &input)
-	lwutil.CheckError(err, "")
+	lwutil.CheckError("", err)
 
 	lwutil.WriteResponse(w, input)
 }
 
 func regBench() {
-	http.HandleFunc("/bench/login", benchLogin)
-	http.HandleFunc("/bench/hello", benchHello)
-	http.HandleFunc("/bench/dbsingleselect", benchDBSingleSelect)
-	http.HandleFunc("/bench/dbinsert", benchDBInsert)
-	http.HandleFunc("/bench/dbinserttx", benchDBInsertTx)
-	http.HandleFunc("/bench/redisget", benchRedisGet)
-	http.HandleFunc("/bench/json", benchJson)
-	http.HandleFunc("/bench/json2", benchJson2)
+	http.Handle("/bench/login", lwutil.ReqHandler(benchLogin))
+	http.Handle("/bench/hello", lwutil.ReqHandler(benchHello))
+	http.Handle("/bench/dbsingleselect", lwutil.ReqHandler(benchDBSingleSelect))
+	http.Handle("/bench/dbinsert", lwutil.ReqHandler(benchDBInsert))
+	http.Handle("/bench/dbinserttx", lwutil.ReqHandler(benchDBInsertTx))
+	http.Handle("/bench/redisget", lwutil.ReqHandler(benchRedisGet))
+	http.Handle("/bench/json", lwutil.ReqHandler(benchJson))
+	http.Handle("/bench/json2", lwutil.ReqHandler(benchJson2))
 }

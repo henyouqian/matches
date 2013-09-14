@@ -7,12 +7,12 @@ import (
 )
 
 type Match struct {
-	Id uint32
-	Name string
+	Id     uint32
+	Name   string
 	Gameid uint32
-	Begin uint64
-	End uint64
-	Sort uint8
+	Begin  uint64
+	End    uint64
+	Sort   uint8
 }
 
 func newMatch(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +38,7 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 	}
 	input := Input{}
 	decodeRequestBody(r, &input)
-	
+
 	if input.Name == "" || input.Begin == "" || input.End == "" || input.Gameid == 0 {
 		sendError("err_input", "Missing Name || Begin || End || Gameid")
 	}
@@ -56,7 +56,7 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 	beginUnix := begin.Unix()
 	endUnix := end.Unix()
 
-	if endUnix - beginUnix <= 60 {
+	if endUnix-beginUnix <= 60 {
 		sendError("err_input", "endUnix - beginUnix must > 60 seconds")
 	}
 	if time.Now().Unix() > endUnix {
@@ -100,7 +100,7 @@ func listOpening(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := db.Query("SELECT id, name, gameid, sort, begin, end FROM matches WHERE begin < ? AND end > ? AND appid = ?", now, now, session.Appid)
 	checkError(err, "")
-	
+
 	matches := make([]Match, 0, 16)
 	var match Match
 	for rows.Next() {
@@ -134,7 +134,7 @@ func listComming(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := db.Query("SELECT id, name, gameid, sort, begin, end FROM matches WHERE begin > ? AND appid = ?", now, session.Appid)
 	checkError(err, "")
-	
+
 	matches := make([]Match, 0, 16)
 	var match Match
 	for rows.Next() {
@@ -168,7 +168,7 @@ func listClosed(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := db.Query("SELECT id, name, gameid, sort, begin, end FROM matches WHERE end < ? AND appid = ?", now, session.Appid)
 	checkError(err, "")
-	
+
 	matches := make([]Match, 0, 16)
 	var match Match
 	for rows.Next() {
@@ -186,10 +186,9 @@ func listClosed(w http.ResponseWriter, r *http.Request) {
 	writeResponse(w, reply)
 }
 
-
 func regMatch() {
-	http.HandleFunc("/match/new", newMatch)
-	http.HandleFunc("/match/listopening", listOpening)
-	http.HandleFunc("/match/listcomming", listComming)
-	http.HandleFunc("/match/listclosed", listClosed)
+	http.Handle("/match/new", ReqHandler(newMatch))
+	http.Handle("/match/listopening", ReqHandler(listOpening))
+	http.Handle("/match/listcomming", ReqHandler(listComming))
+	http.Handle("/match/listclosed", ReqHandler(listClosed))
 }

@@ -33,11 +33,10 @@ func findGame(gameid, appid uint32) (*Game, error) {
 }
 
 func newGame(w http.ResponseWriter, r *http.Request) {
-	defer lwutil.HandleError(w)
 	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	lwutil.CheckError(err, "err_auth")
+	lwutil.CheckError("err_auth", err)
 	checkAdmin(session)
 
 	appid := session.Appid
@@ -72,22 +71,21 @@ func newGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	gameJson, err := json.Marshal(game)
-	lwutil.CheckError(err, "")
+	lwutil.CheckError("", err)
 
 	key := fmt.Sprintf("games/%d", appid)
 	_, err = rc.Do("hset", key, input.Id, gameJson)
-	lwutil.CheckError(err, "")
+	lwutil.CheckError("", err)
 
 	// reply
 	lwutil.WriteResponse(w, game)
 }
 
 func delGame(w http.ResponseWriter, r *http.Request) {
-	defer lwutil.HandleError(w)
 	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	lwutil.CheckError(err, "err_auth")
+	lwutil.CheckError("err_auth", err)
 	checkAdmin(session)
 
 	appid := session.Appid
@@ -110,18 +108,17 @@ func delGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	delNum, err := redis.Int(rc.Do("hdel", args...))
-	lwutil.CheckError(err, "")
+	lwutil.CheckError("", err)
 
 	// reply
 	lwutil.WriteResponse(w, delNum)
 }
 
 func listGame(w http.ResponseWriter, r *http.Request) {
-	defer lwutil.HandleError(w)
 	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	lwutil.CheckError(err, "err_auth")
+	lwutil.CheckError("err_auth", err)
 
 	appid := session.Appid
 	if appid == 0 {
@@ -134,7 +131,7 @@ func listGame(w http.ResponseWriter, r *http.Request) {
 
 	// get game data
 	gameValues, err := redis.Values(rc.Do("hgetall", fmt.Sprintf("games/%d", appid)))
-	lwutil.CheckError(err, "")
+	lwutil.CheckError("", err)
 
 	games := make([]interface{}, 0, len(gameValues)/2)
 	for i, v := range gameValues {
@@ -143,7 +140,7 @@ func listGame(w http.ResponseWriter, r *http.Request) {
 		}
 		var game interface{}
 		err = json.Unmarshal(v.([]byte), &game)
-		lwutil.CheckError(err, "")
+		lwutil.CheckError("", err)
 		games = append(games, game)
 	}
 
@@ -152,7 +149,7 @@ func listGame(w http.ResponseWriter, r *http.Request) {
 }
 
 func regGame() {
-	http.HandleFunc("/game/new", newGame)
-	http.HandleFunc("/game/del", delGame)
-	http.HandleFunc("/game/list", listGame)
+	http.Handle("/game/new", lwutil.ReqHandler(newGame))
+	http.Handle("/game/del", lwutil.ReqHandler(delGame))
+	http.Handle("/game/list", lwutil.ReqHandler(listGame))
 }

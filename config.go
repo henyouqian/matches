@@ -5,6 +5,6 @@ import (
 )
 
 const (
-	MAX_DB_CONNECTION  = 2
-	MATCH_TRY_DURATION = 60 * 10
+	MAX_DB_CONNECTION      = 2
+	MATCH_TRY_DURATION_SEC = 60 * 10
 )
