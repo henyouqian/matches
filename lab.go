@@ -1,11 +1,6 @@
 package main
 
 import (
-	// "github.com/garyburd/redigo/redis"
-	// "time"
-	// "fmt"
-	//"errors"
-	"github.com/golang/glog"
 	"github.com/henyouqian/lwUtil"
 )
 
@@ -31,6 +26,6 @@ func c() error {
 }
 
 func lab() {
-	err := c()
-	glog.Errorln(err)
+	//err := c()
+	//glog.Errorln(err)
 }
