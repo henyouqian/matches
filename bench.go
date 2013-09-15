@@ -29,14 +29,14 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 	row := authDB.QueryRow("SELECT id FROM user_accounts WHERE username=? AND password=?", input.Username, pwsha)
 	var userid uint64
 	err := row.Scan(&userid)
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 
 	// get appid
 	appid := uint32(0)
 	if input.Appsecret != "" {
 		row = authDB.QueryRow("SELECT id FROM apps WHERE secret=?", input.Appsecret)
 		err = row.Scan(&appid)
-		lwutil.CheckError("", err)
+		lwutil.CheckError(err, "")
 	}
 
 	// new session
@@ -44,7 +44,7 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 	defer rc.Close()
 
 	usertoken, err := newSession(w, rc, userid, input.Username, appid)
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 
 	// reply
 	type Reply struct {
@@ -65,7 +65,7 @@ func benchDBSingleSelect(w http.ResponseWriter, r *http.Request) {
 	row := authDB.QueryRow("SELECT id FROM user_accounts WHERE username=?", "admin")
 	var userid uint32
 	err := row.Scan(&userid)
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 
 	lwutil.WriteResponse(w, userid)
 }
@@ -77,15 +77,15 @@ func benchDBInsert(w http.ResponseWriter, r *http.Request) {
 
 	//db
 	stmt, err := matchDB.Prepare("INSERT INTO insertTest (a, b, c, d) VALUES (?, ?, ?, ?)")
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 
 	ids := make([]int64, insertCount)
 	for i := 0; i < insertCount; i++ {
 		res, err := stmt.Exec(1, 2, 3, 4)
-		lwutil.CheckError("err_account_exists", err)
+		lwutil.CheckError(err, "err_account_exists")
 
 		ids[i], err = res.LastInsertId()
-		lwutil.CheckError("", err)
+		lwutil.CheckError(err, "")
 	}
 
 	lwutil.WriteResponse(w, ids)
@@ -98,17 +98,17 @@ func benchDBInsertTx(w http.ResponseWriter, r *http.Request) {
 	tx, err := matchDB.Begin()
 	defer lwutil.EndTx(tx, &err)
 
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 	stmt, err := tx.Prepare("INSERT INTO insertTest (a, b, c, d) VALUES (?, ?, ?, ?)")
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 
 	ids := make([]int64, insertCount)
 	for i := 0; i < insertCount; i++ {
 		res, err := stmt.Exec(1, 2, 3, 4)
-		lwutil.CheckError("err_account_exists", err)
+		lwutil.CheckError(err, "err_account_exists")
 
 		ids[i], err = res.LastInsertId()
-		lwutil.CheckError("", err)
+		lwutil.CheckError(err, "")
 	}
 
 	lwutil.WriteResponse(w, ids)
@@ -125,10 +125,10 @@ func benchRedisGet(w http.ResponseWriter, r *http.Request) {
 	rc.Flush()
 	rc.Receive()
 	foo, err := redis.String(rc.Receive())
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 
 	// foo, err := redis.String(rc.Do("get", "foo"))
-	// lwutil.CheckError("", err)
+	// lwutil.CheckError(err, "")
 
 	lwutil.WriteResponse(w, foo)
 }
@@ -155,7 +155,7 @@ func benchJson(w http.ResponseWriter, r *http.Request) {
 	}
 	input := Input{}
 	err := json.Unmarshal(str, &input)
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 
 	lwutil.WriteResponse(w, input)
 }
@@ -174,7 +174,7 @@ func benchJson2(w http.ResponseWriter, r *http.Request) {
 	}
 	input := Input{}
 	err := json.Unmarshal(str, &input)
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 
 	lwutil.WriteResponse(w, input)
 }

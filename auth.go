@@ -24,7 +24,7 @@ type Session struct {
 func newSession(w http.ResponseWriter, rc redis.Conn, userid uint64, username string, appid uint32) (usertoken string, err error) {
 	usertoken = ""
 	usertokenRaw, err := rc.Do("get", fmt.Sprintf("usertokens/%d+%d", userid, appid))
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 	if usertokenRaw != nil {
 		usertoken, err := redis.String(usertokenRaw, err)
 		if err != nil {
@@ -46,7 +46,7 @@ func newSession(w http.ResponseWriter, rc redis.Conn, userid uint64, username st
 	rc.Flush()
 	for i := 0; i < 2; i++ {
 		_, err = rc.Receive()
-		lwutil.CheckError("", err)
+		lwutil.CheckError(err, "")
 	}
 
 	// cookie
@@ -80,7 +80,7 @@ func findSession(w http.ResponseWriter, r *http.Request) (*Session, error) {
 	}
 
 	err = json.Unmarshal(sessionBytes, &session)
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 
 	//update session
 	dt := time.Now().Sub(session.Born)
@@ -110,13 +110,13 @@ func register(w http.ResponseWriter, r *http.Request) {
 
 	// insert into db
 	stmt, err := authDB.Prepare("INSERT INTO user_accounts (username, password) VALUES (?, ?)")
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 
 	res, err := stmt.Exec(input.Username, pwsha)
-	lwutil.CheckError("err_account_exists", err)
+	lwutil.CheckError(err, "err_account_exists")
 
 	id, err := res.LastInsertId()
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 
 	// reply
 	type Reply struct {
@@ -147,14 +147,14 @@ func login(w http.ResponseWriter, r *http.Request) {
 	row := authDB.QueryRow("SELECT id FROM user_accounts WHERE username=? AND password=?", input.Username, pwsha)
 	var userid uint64
 	err := row.Scan(&userid)
-	lwutil.CheckError("err_not_match", err)
+	lwutil.CheckError(err, "err_not_match")
 
 	// get appid
 	appid := uint32(0)
 	if input.Appsecret != "" {
 		row = authDB.QueryRow("SELECT id FROM apps WHERE secret=?", input.Appsecret)
 		err = row.Scan(&appid)
-		lwutil.CheckError("err_app_secret", err)
+		lwutil.CheckError(err, "err_app_secret")
 	}
 
 	// new session
@@ -162,7 +162,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	defer rc.Close()
 
 	usertoken, err := newSession(w, rc, userid, input.Username, appid)
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 
 	// reply
 	type Reply struct {
@@ -177,10 +177,10 @@ func logout(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	lwutil.CheckError("err_already_logout", err)
+	lwutil.CheckError(err, "err_already_logout")
 
 	usertokenCookie, err := r.Cookie("usertoken")
-	lwutil.CheckError("err_already_logout", err)
+	lwutil.CheckError(err, "err_already_logout")
 	usertoken := usertokenCookie.Value
 
 	rc := redisPool.Get()
@@ -191,7 +191,7 @@ func logout(w http.ResponseWriter, r *http.Request) {
 	rc.Flush()
 	for i := 0; i < 2; i++ {
 		_, err = rc.Receive()
-		lwutil.CheckError("", err)
+		lwutil.CheckError(err, "")
 	}
 
 	// reply
@@ -202,7 +202,7 @@ func newApp(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	lwutil.CheckError("err_auth", err)
+	lwutil.CheckError(err, "err_auth")
 	checkAdmin(session)
 
 	// input
@@ -218,11 +218,11 @@ func newApp(w http.ResponseWriter, r *http.Request) {
 
 	// db
 	stmt, err := authDB.Prepare("INSERT INTO apps (name, secret) VALUES (?, ?)")
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 
 	secret := lwutil.GenUUID()
 	_, err = stmt.Exec(input.Name, secret)
-	lwutil.CheckError("err_name_exists", err)
+	lwutil.CheckError(err, "err_name_exists")
 
 	// reply
 	type Reply struct {
@@ -237,12 +237,12 @@ func listApp(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	lwutil.CheckError("err_auth", err)
+	lwutil.CheckError(err, "err_auth")
 	checkAdmin(session)
 
 	// db
 	rows, err := authDB.Query("SELECT name, secret FROM apps")
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 
 	type App struct {
 		Name   string
@@ -253,7 +253,7 @@ func listApp(w http.ResponseWriter, r *http.Request) {
 	var app App
 	for rows.Next() {
 		err = rows.Scan(&app.Name, &app.Secret)
-		lwutil.CheckError("", err)
+		lwutil.CheckError(err, "")
 		apps = append(apps, app)
 	}
 
@@ -264,7 +264,7 @@ func info(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	lwutil.CheckError("err_auth", err)
+	lwutil.CheckError(err, "err_auth")
 
 	//
 	usertokenCookie, err := r.Cookie("usertoken")

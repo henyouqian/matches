@@ -36,7 +36,7 @@ func newGame(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	lwutil.CheckError("err_auth", err)
+	lwutil.CheckError(err, "err_auth")
 	checkAdmin(session)
 
 	appid := session.Appid
@@ -71,11 +71,11 @@ func newGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	gameJson, err := json.Marshal(game)
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 
 	key := fmt.Sprintf("games/%d", appid)
 	_, err = rc.Do("hset", key, input.Id, gameJson)
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 
 	// reply
 	lwutil.WriteResponse(w, game)
@@ -85,7 +85,7 @@ func delGame(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	lwutil.CheckError("err_auth", err)
+	lwutil.CheckError(err, "err_auth")
 	checkAdmin(session)
 
 	appid := session.Appid
@@ -108,7 +108,7 @@ func delGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	delNum, err := redis.Int(rc.Do("hdel", args...))
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 
 	// reply
 	lwutil.WriteResponse(w, delNum)
@@ -118,7 +118,7 @@ func listGame(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r)
-	lwutil.CheckError("err_auth", err)
+	lwutil.CheckError(err, "err_auth")
 
 	appid := session.Appid
 	if appid == 0 {
@@ -131,7 +131,7 @@ func listGame(w http.ResponseWriter, r *http.Request) {
 
 	// get game data
 	gameValues, err := redis.Values(rc.Do("hgetall", fmt.Sprintf("games/%d", appid)))
-	lwutil.CheckError("", err)
+	lwutil.CheckError(err, "")
 
 	games := make([]interface{}, 0, len(gameValues)/2)
 	for i, v := range gameValues {
@@ -140,7 +140,7 @@ func listGame(w http.ResponseWriter, r *http.Request) {
 		}
 		var game interface{}
 		err = json.Unmarshal(v.([]byte), &game)
-		lwutil.CheckError("", err)
+		lwutil.CheckError(err, "")
 		games = append(games, game)
 	}
 
