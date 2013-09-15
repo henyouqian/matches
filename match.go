@@ -39,7 +39,8 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 		End    string
 	}
 	input := Input{}
-	lwutil.DecodeRequestBody(r, &input)
+	err = lwutil.DecodeRequestBody(r, &input)
+	lwutil.CheckError(err, "err_decode_body")
 
 	if input.Name == "" || input.Begin == "" || input.End == "" || input.GameId == 0 {
 		lwutil.SendError("err_input", "Missing Name || Begin || End || Gameid")
@@ -112,7 +113,8 @@ func delMatch(w http.ResponseWriter, r *http.Request) {
 
 	// input
 	matchIds := make([]int, 0, 8)
-	lwutil.DecodeRequestBody(r, &matchIds)
+	err = lwutil.DecodeRequestBody(r, &matchIds)
+	lwutil.CheckError(err, "err_decode_body")
 
 	// redis
 	rc := redisPool.Get()
@@ -207,7 +209,8 @@ func startMatch(w http.ResponseWriter, r *http.Request) {
 	in := struct {
 		MatchId uint32
 	}{}
-	lwutil.DecodeRequestBody(r, &in)
+	err = lwutil.DecodeRequestBody(r, &in)
+	lwutil.CheckError(err, "err_decode_body")
 
 	// redis setup
 	rc := redisPool.Get()
@@ -285,7 +288,8 @@ func addScore(w http.ResponseWriter, r *http.Request) {
 		TrySecret string
 		Score     int64
 	}{}
-	lwutil.DecodeRequestBody(r, &in)
+	err = lwutil.DecodeRequestBody(r, &in)
+	lwutil.CheckError(err, "err_decode_body")
 
 	// redis setup
 	rc := redisPool.Get()

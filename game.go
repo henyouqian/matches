@@ -50,7 +50,8 @@ func newGame(w http.ResponseWriter, r *http.Request) {
 		Name string
 		Sort string
 	}{}
-	lwutil.DecodeRequestBody(r, &input)
+	err = lwutil.DecodeRequestBody(r, &input)
+	lwutil.CheckError(err, "err_decode_body")
 
 	if input.Id == 0 || input.Name == "" {
 		lwutil.SendError("err_input", "Missing Id or Name")
@@ -94,7 +95,8 @@ func delGame(w http.ResponseWriter, r *http.Request) {
 
 	// input
 	gameIds := make([]int, 0, 8)
-	lwutil.DecodeRequestBody(r, &gameIds)
+	err = lwutil.DecodeRequestBody(r, &gameIds)
+	lwutil.CheckError(err, "err_decode_body")
 
 	// redis
 	rc := redisPool.Get()

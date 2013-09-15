@@ -100,7 +100,8 @@ func register(w http.ResponseWriter, r *http.Request) {
 		Password string
 	}{}
 
-	lwutil.DecodeRequestBody(r, &input)
+	err := lwutil.DecodeRequestBody(r, &input)
+	lwutil.CheckError(err, "err_decode_body")
 
 	if input.Username == "" || input.Password == "" {
 		lwutil.SendError("err_input", "")
@@ -134,7 +135,8 @@ func login(w http.ResponseWriter, r *http.Request) {
 		Password  string
 		Appsecret string
 	}{}
-	lwutil.DecodeRequestBody(r, &input)
+	err := lwutil.DecodeRequestBody(r, &input)
+	lwutil.CheckError(err, "err_decode_body")
 
 	if input.Username == "" || input.Password == "" {
 		lwutil.SendError("err_input", "")
@@ -145,7 +147,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	// get userid
 	row := authDB.QueryRow("SELECT id FROM user_accounts WHERE username=? AND password=?", input.Username, pwsha)
 	var userid uint64
-	err := row.Scan(&userid)
+	err = row.Scan(&userid)
 	lwutil.CheckError(err, "err_not_match")
 
 	// get appid
@@ -207,7 +209,8 @@ func newApp(w http.ResponseWriter, r *http.Request) {
 	input := struct {
 		Name string
 	}{}
-	lwutil.DecodeRequestBody(r, &input)
+	err = lwutil.DecodeRequestBody(r, &input)
+	lwutil.CheckError(err, "err_decode_body")
 
 	if input.Name == "" {
 		lwutil.SendError("err_input", "input.Name empty")
