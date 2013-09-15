@@ -204,10 +204,9 @@ func startMatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// input
-	type input struct {
+	in := struct {
 		MatchId uint32
-	}
-	var in input
+	}{}
 	lwutil.DecodeRequestBody(r, &in)
 
 	// redis setup
@@ -282,11 +281,10 @@ func addScore(w http.ResponseWriter, r *http.Request) {
 	//}
 
 	// input
-	type input struct {
+	in := struct {
 		TrySecret string
 		Score     int64
-	}
-	var in input
+	}{}
 	lwutil.DecodeRequestBody(r, &in)
 
 	// redis setup

@@ -45,12 +45,11 @@ func newGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// input
-	type Input struct {
+	input := struct {
 		Id   uint32
 		Name string
 		Sort string
-	}
-	input := Input{}
+	}{}
 	lwutil.DecodeRequestBody(r, &input)
 
 	if input.Id == 0 || input.Name == "" {

@@ -12,29 +12,28 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "GET")
 
 	// input
-	type Input struct {
+	in := struct {
 		Username  string
 		Password  string
 		Appsecret string
-	}
-	input := Input{Username: "admin", Password: "admin"}
+	}{Username: "admin", Password: "admin"}
 
-	if input.Username == "" || input.Password == "" {
+	if in.Username == "" || in.Password == "" {
 		lwutil.SendError("err_input", "")
 	}
 
-	pwsha := lwutil.Sha224(input.Password + passwordSalt)
+	pwsha := lwutil.Sha224(in.Password + passwordSalt)
 
 	// get userid
-	row := authDB.QueryRow("SELECT id FROM user_accounts WHERE username=? AND password=?", input.Username, pwsha)
+	row := authDB.QueryRow("SELECT id FROM user_accounts WHERE username=? AND password=?", in.Username, pwsha)
 	var userid uint64
 	err := row.Scan(&userid)
 	lwutil.CheckError(err, "")
 
 	// get appid
 	appid := uint32(0)
-	if input.Appsecret != "" {
-		row = authDB.QueryRow("SELECT id FROM apps WHERE secret=?", input.Appsecret)
+	if in.Appsecret != "" {
+		row = authDB.QueryRow("SELECT id FROM apps WHERE secret=?", in.Appsecret)
 		err = row.Scan(&appid)
 		lwutil.CheckError(err, "")
 	}
@@ -43,15 +42,14 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 	rc := redisPool.Get()
 	defer rc.Close()
 
-	usertoken, err := newSession(w, rc, userid, input.Username, appid)
+	usertoken, err := newSession(w, rc, userid, in.Username, appid)
 	lwutil.CheckError(err, "")
 
 	// reply
-	type Reply struct {
+	reply := struct {
 		Usertoken string
 		Appid     uint32
-	}
-	reply := Reply{usertoken, appid}
+	}{usertoken, appid}
 	lwutil.WriteResponse(w, reply)
 }
 
@@ -146,18 +144,17 @@ func benchJson(w http.ResponseWriter, r *http.Request) {
 		}
 	`)
 
-	type Input struct {
+	in := struct {
 		Name   string
 		Gameid uint32
 		Begin  string
 		End    string
 		Sort   uint8
-	}
-	input := Input{}
-	err := json.Unmarshal(str, &input)
+	}{}
+	err := json.Unmarshal(str, &in)
 	lwutil.CheckError(err, "")
 
-	lwutil.WriteResponse(w, input)
+	lwutil.WriteResponse(w, in)
 }
 
 func benchJson2(w http.ResponseWriter, r *http.Request) {
@@ -169,14 +166,13 @@ func benchJson2(w http.ResponseWriter, r *http.Request) {
 		}
 	`)
 
-	type Input struct {
+	in := struct {
 		Name string
-	}
-	input := Input{}
-	err := json.Unmarshal(str, &input)
+	}{}
+	err := json.Unmarshal(str, &in)
 	lwutil.CheckError(err, "")
 
-	lwutil.WriteResponse(w, input)
+	lwutil.WriteResponse(w, in)
 }
 
 func regBench() {

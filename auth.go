@@ -95,11 +95,11 @@ func register(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
 	// input
-	type Input struct {
+	input := struct {
 		Username string
 		Password string
-	}
-	var input Input
+	}{}
+
 	lwutil.DecodeRequestBody(r, &input)
 
 	if input.Username == "" || input.Password == "" {
@@ -129,12 +129,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
 	// input
-	type Input struct {
+	input := struct {
 		Username  string
 		Password  string
 		Appsecret string
-	}
-	var input Input
+	}{}
 	lwutil.DecodeRequestBody(r, &input)
 
 	if input.Username == "" || input.Password == "" {
@@ -165,11 +164,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckError(err, "")
 
 	// reply
-	type Reply struct {
+	reply := struct {
 		Usertoken string
 		Appid     uint32
-	}
-	reply := Reply{usertoken, appid}
+	}{usertoken, appid}
 	lwutil.WriteResponse(w, reply)
 }
 
@@ -206,10 +204,9 @@ func newApp(w http.ResponseWriter, r *http.Request) {
 	checkAdmin(session)
 
 	// input
-	type Input struct {
+	input := struct {
 		Name string
-	}
-	var input Input
+	}{}
 	lwutil.DecodeRequestBody(r, &input)
 
 	if input.Name == "" {
@@ -225,11 +222,10 @@ func newApp(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckError(err, "err_name_exists")
 
 	// reply
-	type Reply struct {
+	reply := struct {
 		Name   string
 		Secret string
-	}
-	reply := Reply{input.Name, secret}
+	}{input.Name, secret}
 	lwutil.WriteResponse(w, reply)
 }
 
@@ -271,11 +267,10 @@ func info(w http.ResponseWriter, r *http.Request) {
 	usertoken := usertokenCookie.Value
 
 	//
-	type Reply struct {
+	reply := struct {
 		Session   *Session
 		UserToken string
-	}
-	reply := Reply{session, usertoken}
+	}{session, usertoken}
 
 	lwutil.WriteResponse(w, reply)
 }
