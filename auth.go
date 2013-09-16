@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/garyburd/redigo/redis"
 	"github.com/henyouqian/lwutil"
@@ -26,9 +25,8 @@ func newSession(w http.ResponseWriter, rc redis.Conn, userid uint64, username st
 	usertokenRaw, err := rc.Do("get", fmt.Sprintf("usertokens/%d+%d", userid, appid))
 	lwutil.CheckError(err, "")
 	if usertokenRaw != nil {
-		usertoken, err := redis.String(usertokenRaw, err)
-		if err != nil {
-			return usertoken, err
+		if usertoken, err := redis.String(usertokenRaw, err); err != nil {
+			return usertoken, lwutil.NewErr(err)
 		}
 		rc.Do("del", fmt.Sprintf("sessions/%s", usertoken))
 	}
@@ -38,15 +36,16 @@ func newSession(w http.ResponseWriter, rc redis.Conn, userid uint64, username st
 	session := Session{userid, username, time.Now(), appid}
 	jsonSession, err := json.Marshal(session)
 	if err != nil {
-		return usertoken, err
+		return usertoken, lwutil.NewErr(err)
 	}
 
 	rc.Send("setex", fmt.Sprintf("sessions/%s", usertoken), sessionLifeSecond, jsonSession)
 	rc.Send("setex", fmt.Sprintf("usertokens/%d+%d", userid, appid), sessionLifeSecond, usertoken)
 	rc.Flush()
 	for i := 0; i < 2; i++ {
-		_, err = rc.Receive()
-		lwutil.CheckError(err, "")
+		if _, err = rc.Receive(); err != nil {
+			return usertoken, lwutil.NewErr(err)
+		}
 	}
 
 	// cookie
@@ -66,7 +65,7 @@ func findSession(w http.ResponseWriter, r *http.Request) (*Session, error) {
 
 	usertokenCookie, err := r.Cookie("usertoken")
 	if err != nil {
-		return session, errors.New("usertoken not in cookie")
+		return session, lwutil.NewErr(err)
 	}
 	usertoken := usertokenCookie.Value
 
@@ -76,10 +75,10 @@ func findSession(w http.ResponseWriter, r *http.Request) (*Session, error) {
 
 	sessionBytes, err := redis.Bytes(rc.Do("get", fmt.Sprintf("sessions/%s", usertoken)))
 	if err != nil {
-		return session, err
+		return session, lwutil.NewErr(err)
 	}
 
-	err = json.Unmarshal(sessionBytes, &session)
+	err = json.Unmarshal(sessionBytes, session)
 	lwutil.CheckError(err, "")
 
 	//update session
@@ -95,10 +94,10 @@ func register(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
 	// input
-	input := struct {
+	var input struct {
 		Username string
 		Password string
-	}{}
+	}
 
 	err := lwutil.DecodeRequestBody(r, &input)
 	lwutil.CheckError(err, "err_decode_body")
@@ -120,21 +119,21 @@ func register(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckError(err, "")
 
 	// reply
-	type Reply struct {
+	reply := struct {
 		Userid int64
-	}
-	lwutil.WriteResponse(w, Reply{id})
+	}{id}
+	lwutil.WriteResponse(w, reply)
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
 	// input
-	input := struct {
+	var input struct {
 		Username  string
 		Password  string
 		Appsecret string
-	}{}
+	}
 	err := lwutil.DecodeRequestBody(r, &input)
 	lwutil.CheckError(err, "err_decode_body")
 
@@ -202,9 +201,9 @@ func newApp(w http.ResponseWriter, r *http.Request) {
 	checkAdmin(session)
 
 	// input
-	input := struct {
+	var input struct {
 		Name string
-	}{}
+	}
 	err = lwutil.DecodeRequestBody(r, &input)
 	lwutil.CheckError(err, "err_decode_body")
 

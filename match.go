@@ -32,29 +32,28 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// input
-	type Input struct {
+	var in struct {
 		Name   string
 		GameId uint32
 		Begin  string
 		End    string
 	}
-	input := Input{}
-	err = lwutil.DecodeRequestBody(r, &input)
+	err = lwutil.DecodeRequestBody(r, &in)
 	lwutil.CheckError(err, "err_decode_body")
 
-	if input.Name == "" || input.Begin == "" || input.End == "" || input.GameId == 0 {
+	if in.Name == "" || in.Begin == "" || in.End == "" || in.GameId == 0 {
 		lwutil.SendError("err_input", "Missing Name || Begin || End || Gameid")
 	}
 
 	// game info
-	game, err := findGame(input.GameId, appid)
+	game, err := findGame(in.GameId, appid)
 	lwutil.CheckError(err, "err_game")
 
 	// times
 	const timeform = "2006-01-02 15:04:05"
-	begin, err := time.ParseInLocation(timeform, input.Begin, time.Local)
+	begin, err := time.ParseInLocation(timeform, in.Begin, time.Local)
 	lwutil.CheckError(err, "")
-	end, err := time.ParseInLocation(timeform, input.End, time.Local)
+	end, err := time.ParseInLocation(timeform, in.End, time.Local)
 	lwutil.CheckError(err, "")
 	beginUnix := begin.Unix()
 	endUnix := end.Unix()
@@ -75,8 +74,8 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 
 	match := Match{
 		uint32(matchId),
-		input.Name,
-		input.GameId,
+		in.Name,
+		in.GameId,
 		beginUnix,
 		endUnix,
 		game.Sort,
@@ -206,9 +205,9 @@ func startMatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// input
-	in := struct {
+	var in struct {
 		MatchId uint32
-	}{}
+	}
 	err = lwutil.DecodeRequestBody(r, &in)
 	lwutil.CheckError(err, "err_decode_body")
 
@@ -284,10 +283,10 @@ func addScore(w http.ResponseWriter, r *http.Request) {
 	//}
 
 	// input
-	in := struct {
+	var in struct {
 		TrySecret string
 		Score     int64
-	}{}
+	}
 	err = lwutil.DecodeRequestBody(r, &in)
 	lwutil.CheckError(err, "err_decode_body")
 
