@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/garyburd/redigo/redis"
 	"github.com/golang/glog"
-	"github.com/henyouqian/lwUtil"
+	"github.com/henyouqian/lwutil"
 	"net/http"
 	"time"
 )

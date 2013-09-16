@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/henyouqian/lwUtil"
+	"github.com/henyouqian/lwutil"
 )
 
 func a() error {
