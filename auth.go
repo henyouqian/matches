@@ -166,11 +166,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckError(err, "")
 
 	// reply
-	reply := struct {
-		Usertoken string
-		Appid     uint32
-	}{usertoken, appid}
-	lwutil.WriteResponse(w, reply)
+	lwutil.WriteResponse(w, usertoken)
 }
 
 func logout(w http.ResponseWriter, r *http.Request) {
@@ -259,7 +255,7 @@ func listApp(w http.ResponseWriter, r *http.Request) {
 	lwutil.WriteResponse(w, apps)
 }
 
-func info(w http.ResponseWriter, r *http.Request) {
+func loginInfo(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r)
@@ -284,5 +280,5 @@ func regAuth() {
 	http.Handle("/auth/register", lwutil.ReqHandler(register))
 	http.Handle("/auth/newapp", lwutil.ReqHandler(newApp))
 	http.Handle("/auth/listapp", lwutil.ReqHandler(listApp))
-	http.Handle("/auth/info", lwutil.ReqHandler(info))
+	http.Handle("/auth/info", lwutil.ReqHandler(loginInfo))
 }
