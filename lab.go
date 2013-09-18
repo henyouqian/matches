@@ -1,6 +1,7 @@
 package main
 
 import (
+	//"github.com/golang/glog"
 	"github.com/henyouqian/lwutil"
 )
 
@@ -26,6 +27,6 @@ func c() error {
 }
 
 func lab() {
-	//err := c()
-	//glog.Errorln(err)
+	//v, err := getKV("aaa")
+	//glog.Infoln(v, err)
 }

@@ -3,12 +3,11 @@ package main
 import (
 	"database/sql"
 	"github.com/garyburd/redigo/redis"
-	"time"
+	//"time"
+	"github.com/henyouqian/lwutil"
 )
 
-const (
-	KEY_KV_ZSETS = "matches/kv"
-)
+const ()
 
 var (
 	kvDB *sql.DB
@@ -19,16 +18,34 @@ func init() {
 	kvDB.SetMaxIdleConns(10)
 }
 
-func setKV(key string, value string, expireSec uint, rc redis.Conn) {
-	rc = redisPool.Get()
+const (
+	CACHE_LIFE_SEC = 3600
+	SCRIPT_SET_KV  = `
+		redis.call('set', 'kv/'..KEYS[1], KEYS[2])
+		redis.call('zadd', 'kvz', KEYS[3], KEYS[1])
+	`
+)
+
+func setKV(key string, value string) error {
+	rc := redisPool.Get()
 	defer rc.Close()
 
-	if expireSec > 3600 {
-		expireSec = 3600
-	}
+	expireTime := lwutil.GetRedisTime() + CACHE_LIFE_SEC
 
-	rc.Send("SET", "kv/"+key, value)
-	score := time.Now().Unix() + int64(expireSec)
-	rc.Send("ZADD", KEY_KV_ZSETS, score, key)
-	rc.Flush()
+	_, err := rc.Do("eval", SCRIPT_SET_KV, 3, key, value, expireTime)
+	if err != nil {
+		return lwutil.NewErr(err)
+	}
+	return nil
+}
+
+func getKV(key string) (string, error) {
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	v, err := redis.String(rc.Do("get", "kv/"+key))
+	if err != nil {
+		err = lwutil.NewErr(err)
+	}
+	return v, err
 }
