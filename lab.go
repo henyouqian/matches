@@ -1,7 +1,7 @@
 package main
 
 import (
-	//"github.com/golang/glog"
+	"github.com/golang/glog"
 	"github.com/henyouqian/lwutil"
 )
 
@@ -26,7 +26,14 @@ func c() error {
 	return nil
 }
 
+func g() {
+	glog.Infoln("g")
+}
+
 func lab() {
 	//v, err := getKV("aaa")
 	//glog.Infoln(v, err)
+	lwutil.SetKV("bbb", []byte("uuu"))
+	aaa, err := lwutil.GetKV("aaa")
+	glog.Infoln(string(aaa), err)
 }
