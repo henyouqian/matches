@@ -114,28 +114,6 @@ function Controller($scope, $http) {
 				},
 			] 
 		},
-		{
-			"path":"matchold",
-			"apis":[
-				{
-					"name": "new",
-					"method": "POST",
-					"data": {"Name":"aa", "Gameid":1, "Begin":"2006-01-02 15:04:05", "End":"2006-01-02 15:04:05", "Sort":0}
-				},{
-					"name": "listopening",
-					"method": "POST",
-					"data": ""
-				},{
-					"name": "listcomming",
-					"method": "POST",
-					"data": ""
-				},{
-					"name": "listclosed",
-					"method": "POST",
-					"data": ""
-				},
-			] 
-		},
 	]
 
 	var sendCodeMirror = CodeMirror.fromTextArea(sendTextArea, 
@@ -148,6 +126,13 @@ function Controller($scope, $http) {
 			theme: "elegant",
 		}
 	);
+	var historyCodeMirror = CodeMirror.fromTextArea(historyTextArea, 
+		{
+			theme: "elegant",
+			readOnly: true
+		}
+	);
+	historyCodeMirror.setSize("100%", 600)
 
 	$scope.selectedApiPath = ""
 	$scope.currApi = null
@@ -173,6 +158,7 @@ function Controller($scope, $http) {
 	$scope.send = function() {
 		var url = "../"+$scope.currUrl
 		var input = sendCodeMirror.doc.getValue()
+		var inputText = input
 		if (input) {
 			try {
 				input = JSON.parse(input)
@@ -181,35 +167,48 @@ function Controller($scope, $http) {
 				return
 			}	
 		}
-		var t = window.performance.now()
+
+		var onReceive = function(json) {
+			printQueryTick()
+			var replyText = JSON.stringify(json, null, '\t')
+			recvCodeMirror.doc.setValue(replyText)
+
+			var hisDoc = historyCodeMirror.getDoc()
+			hisDoc.setCursor({line: 0, ch: 0})
+
+			inputText = "\t"+inputText.replace(/\n/g, "\n\t");
+			replyText = "\t"+replyText.replace(/\n/g, "\n\t");
+
+			var hisText = "=> " + $scope.currUrl + "\n" + inputText + "\n<=\n" + replyText + "\n"
+			hisText += "------------------------\n"
+			hisDoc.replaceSelection(hisText, "start")
+		}
+
+		var onFail = function(obj) {
+			printQueryTick()
+			var text = obj.status + ":" + obj.statusText + "\n\n" + JSON.stringify(obj.responseJSON, null, '\t')
+			recvCodeMirror.doc.setValue(text)
+		}
+
 		function printQueryTick() {
 			$scope.$apply(function(){
 				$scope.queryTick = Math.round(window.performance.now() - t)
 			});
 		}
+		var t = window.performance.now()
 		if ($scope.currApi.method == "GET") {
-			$.getJSON(url, input, function(json){
-				printQueryTick()
-				recvCodeMirror.doc.setValue(JSON.stringify(json, null, '\t'))
-			})
-			.fail(function(obj) {
-				printQueryTick()
-				var text = obj.status + ":" + obj.statusText + "\n\n" + JSON.stringify(obj.responseJSON, null, '\t')
-				recvCodeMirror.doc.setValue(text) 
-			})
+			$.getJSON(url, input, onReceive)
+			.fail(onFail)
 		}else if ($scope.currApi.method == "POST") {
-			$.post(url, sendCodeMirror.doc.getValue(), function(json){
-				printQueryTick()
-				recvCodeMirror.doc.setValue(JSON.stringify(json, null, '\t'))
-			}, "json")
-			.fail(function(obj) {
-				printQueryTick()
-				var text = obj.status + ":" + obj.statusText + "\n\n" + JSON.stringify(obj.responseJSON, null, '\t')
-				recvCodeMirror.doc.setValue(text) 
-			})
+			$.post(url, sendCodeMirror.doc.getValue(), onReceive, "json")
+			.fail(onFail)
 		}
 	}
 
-	
+	$('#collapseOne').on('shown.bs.collapse', function () {
+		historyCodeMirror.refresh()
+	})
 }
+
+
 
