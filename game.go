@@ -35,7 +35,10 @@ func findGame(gameid, appid uint32) (*Game, error) {
 func newGame(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
-	session, err := findSession(w, r)
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	session, err := findSession(w, r, rc)
 	lwutil.CheckError(err, "err_auth")
 	checkAdmin(session)
 
@@ -61,9 +64,6 @@ func newGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//
-	rc := redisPool.Get()
-	defer rc.Close()
-
 	game := Game{
 		input.Id,
 		input.Name,
@@ -84,7 +84,10 @@ func newGame(w http.ResponseWriter, r *http.Request) {
 func delGame(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
-	session, err := findSession(w, r)
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	session, err := findSession(w, r, rc)
 	lwutil.CheckError(err, "err_auth")
 	checkAdmin(session)
 
@@ -99,9 +102,6 @@ func delGame(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckError(err, "err_decode_body")
 
 	// redis
-	rc := redisPool.Get()
-	defer rc.Close()
-
 	args := make([]interface{}, 1, 8)
 	args[0] = fmt.Sprintf("games/%d", appid)
 	for _, gameId := range gameIds {
@@ -118,17 +118,16 @@ func delGame(w http.ResponseWriter, r *http.Request) {
 func listGame(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
-	session, err := findSession(w, r)
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	session, err := findSession(w, r, rc)
 	lwutil.CheckError(err, "err_auth")
 
 	appid := session.Appid
 	if appid == 0 {
 		lwutil.SendError("err_auth", "Please login with app secret")
 	}
-
-	// redis
-	rc := redisPool.Get()
-	defer rc.Close()
 
 	// get game data
 	gameValues, err := redis.Values(rc.Do("hgetall", fmt.Sprintf("games/%d", appid)))

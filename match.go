@@ -22,7 +22,10 @@ type Match struct {
 func newMatch(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
-	session, err := findSession(w, r)
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	session, err := findSession(w, r, rc)
 	lwutil.CheckError(err, "err_auth")
 	checkAdmin(session)
 
@@ -66,9 +69,6 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//
-	rc := redisPool.Get()
-	defer rc.Close()
-
 	matchId, err := redis.Int(rc.Do("incr", "idGen/match"))
 	lwutil.CheckError(err, "")
 
@@ -101,7 +101,10 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 func delMatch(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
-	session, err := findSession(w, r)
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	session, err := findSession(w, r, rc)
 	lwutil.CheckError(err, "err_auth")
 	checkAdmin(session)
 
@@ -116,9 +119,6 @@ func delMatch(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckError(err, "err_decode_body")
 
 	// redis
-	rc := redisPool.Get()
-	defer rc.Close()
-
 	key := fmt.Sprintf("matchesInApp/%d", appid)
 	params := make([]interface{}, 0, 8)
 	params = append(params, key)
@@ -150,7 +150,10 @@ func delMatch(w http.ResponseWriter, r *http.Request) {
 func listMatch(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
-	session, err := findSession(w, r)
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	session, err := findSession(w, r, rc)
 	lwutil.CheckError(err, "err_auth")
 
 	appid := session.Appid
@@ -159,9 +162,6 @@ func listMatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nowUnix := time.Now().Unix()
-
-	rc := redisPool.Get()
-	defer rc.Close()
 
 	// get matchIds
 	key := fmt.Sprintf("matchesInApp/%d", appid)
@@ -196,7 +196,10 @@ func listMatch(w http.ResponseWriter, r *http.Request) {
 func startMatch(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
-	session, err := findSession(w, r)
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	session, err := findSession(w, r, rc)
 	lwutil.CheckError(err, "err_auth")
 
 	appid := session.Appid
@@ -210,10 +213,6 @@ func startMatch(w http.ResponseWriter, r *http.Request) {
 	}
 	err = lwutil.DecodeRequestBody(r, &in)
 	lwutil.CheckError(err, "err_decode_body")
-
-	// redis setup
-	rc := redisPool.Get()
-	defer rc.Close()
 
 	// playing?
 	secretRaw, err := rc.Do("get", fmt.Sprintf("trySecretsRev/%d", in.MatchId))
@@ -274,7 +273,10 @@ func startMatch(w http.ResponseWriter, r *http.Request) {
 func addScore(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
-	session, err := findSession(w, r)
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	session, err := findSession(w, r, rc)
 	lwutil.CheckError(err, "err_auth")
 
 	//appid := session.Appid
@@ -289,10 +291,6 @@ func addScore(w http.ResponseWriter, r *http.Request) {
 	}
 	err = lwutil.DecodeRequestBody(r, &in)
 	lwutil.CheckError(err, "err_decode_body")
-
-	// redis setup
-	rc := redisPool.Get()
-	defer rc.Close()
 
 	// use secret to get matchId
 	matchIdRaw, err := rc.Do("get", fmt.Sprintf("trySecrets/%s", in.TrySecret))

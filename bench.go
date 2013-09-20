@@ -42,7 +42,7 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 	rc := redisPool.Get()
 	defer rc.Close()
 
-	usertoken, err := newSession(w, rc, userid, in.Username, appid)
+	usertoken, err := newSession(w, userid, in.Username, appid, rc)
 	lwutil.CheckError(err, "")
 
 	// reply

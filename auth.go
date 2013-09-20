@@ -20,7 +20,11 @@ type Session struct {
 	Appid    uint32
 }
 
-func newSession(w http.ResponseWriter, rc redis.Conn, userid uint64, username string, appid uint32) (usertoken string, err error) {
+func newSession(w http.ResponseWriter, userid uint64, username string, appid uint32, rc redis.Conn) (usertoken string, err error) {
+	if rc == nil {
+		rc = redisPool.Get()
+		defer rc.Close()
+	}
 	usertoken = ""
 	usertokenRaw, err := rc.Do("get", fmt.Sprintf("usertokens/%d+%d", userid, appid))
 	lwutil.CheckError(err, "")
@@ -60,7 +64,7 @@ func checkAdmin(session *Session) {
 	}
 }
 
-func findSession(w http.ResponseWriter, r *http.Request) (*Session, error) {
+func findSession(w http.ResponseWriter, r *http.Request, rc redis.Conn) (*Session, error) {
 	session := new(Session)
 
 	usertokenCookie, err := r.Cookie("usertoken")
@@ -70,8 +74,10 @@ func findSession(w http.ResponseWriter, r *http.Request) (*Session, error) {
 	usertoken := usertokenCookie.Value
 
 	//redis
-	rc := redisPool.Get()
-	defer rc.Close()
+	if rc == nil {
+		rc = redisPool.Get()
+		defer rc.Close()
+	}
 
 	sessionBytes, err := redis.Bytes(rc.Do("get", fmt.Sprintf("sessions/%s", usertoken)))
 	if err != nil {
@@ -84,7 +90,7 @@ func findSession(w http.ResponseWriter, r *http.Request) (*Session, error) {
 	//update session
 	dt := time.Now().Sub(session.Born)
 	if dt > sessionUpdateSecond*time.Second {
-		newSession(w, rc, session.Userid, session.Username, session.Appid)
+		newSession(w, session.Userid, session.Username, session.Appid, rc)
 	}
 
 	return session, nil
@@ -161,7 +167,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	rc := redisPool.Get()
 	defer rc.Close()
 
-	usertoken, err := newSession(w, rc, userid, input.Username, appid)
+	usertoken, err := newSession(w, userid, input.Username, appid, rc)
 	lwutil.CheckError(err, "")
 
 	// reply
@@ -171,15 +177,15 @@ func login(w http.ResponseWriter, r *http.Request) {
 func logout(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
-	session, err := findSession(w, r)
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	session, err := findSession(w, r, rc)
 	lwutil.CheckError(err, "err_already_logout")
 
 	usertokenCookie, err := r.Cookie("usertoken")
 	lwutil.CheckError(err, "err_already_logout")
 	usertoken := usertokenCookie.Value
-
-	rc := redisPool.Get()
-	defer rc.Close()
 
 	rc.Send("del", fmt.Sprintf("sessions/%s", usertoken))
 	rc.Send("del", fmt.Sprintf("usertokens/%d+%d", session.Userid, session.Appid))
@@ -196,7 +202,7 @@ func logout(w http.ResponseWriter, r *http.Request) {
 func newApp(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
-	session, err := findSession(w, r)
+	session, err := findSession(w, r, nil)
 	lwutil.CheckError(err, "err_auth")
 	checkAdmin(session)
 
@@ -230,7 +236,7 @@ func newApp(w http.ResponseWriter, r *http.Request) {
 func listApp(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
-	session, err := findSession(w, r)
+	session, err := findSession(w, r, nil)
 	lwutil.CheckError(err, "err_auth")
 	checkAdmin(session)
 
@@ -257,7 +263,7 @@ func listApp(w http.ResponseWriter, r *http.Request) {
 func loginInfo(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
-	session, err := findSession(w, r)
+	session, err := findSession(w, r, nil)
 	lwutil.CheckError(err, "err_auth")
 
 	//

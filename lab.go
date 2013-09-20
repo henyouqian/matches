@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/golang/glog"
 	"github.com/henyouqian/lwutil"
 )
@@ -30,10 +31,17 @@ func g() {
 	glog.Infoln("g")
 }
 
+func kv() {
+	rc := redisPool.Get()
+	defer rc.Close()
+
+	glog.Infoln("begin")
+	for i := 0; i < 100000; i++ {
+		lwutil.SetKV(fmt.Sprintf("bbb/%d", i), []byte("ccc"), rc)
+	}
+	glog.Infoln("end")
+}
+
 func lab() {
-	//v, err := getKV("aaa")
-	//glog.Infoln(v, err)
-	lwutil.SetKV("bbb", []byte("uuu"))
-	aaa, err := lwutil.GetKV("aaa")
-	glog.Infoln(string(aaa), err)
+
 }
