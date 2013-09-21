@@ -23,6 +23,7 @@ func main() {
 	regGame()
 	regMatch()
 	regBench()
+	regRank()
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 

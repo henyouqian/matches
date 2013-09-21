@@ -307,12 +307,7 @@ func addScore(w http.ResponseWriter, r *http.Request) {
 	rc.Send("srem", keyFail, session.Userid)
 	rc.Send("zadd", keyLeaderboard, in.Score, session.Userid)
 	rc.Send("del", fmt.Sprintf("trySecrets/%s", in.TrySecret))
-	rc.Flush()
-	_, err = rc.Receive()
-	lwutil.CheckError(err, "")
-	_, err = rc.Receive()
-	lwutil.CheckError(err, "")
-	_, err = rc.Receive()
+	err = rc.Flush()
 	lwutil.CheckError(err, "")
 
 	// reply

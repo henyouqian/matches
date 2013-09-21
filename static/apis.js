@@ -114,6 +114,16 @@ function Controller($scope, $http) {
 				},
 			] 
 		},
+		{
+			"path":"rank",
+			"apis":[
+				{
+					"name": "mine",
+					"method": "POST",
+					"data": {"MatchId":1}
+				},
+			] 
+		},
 	]
 
 	var sendCodeMirror = CodeMirror.fromTextArea(sendTextArea, 
@@ -154,7 +164,7 @@ function Controller($scope, $http) {
 	}
 
 	$scope.queryTick = 0
-
+	var lastHisText = ""
 	$scope.send = function() {
 		var url = "../"+$scope.currUrl
 		var input = sendCodeMirror.doc.getValue()
@@ -181,7 +191,11 @@ function Controller($scope, $http) {
 
 			var hisText = "=> " + $scope.currUrl + "\n" + inputText + "\n<=\n" + replyText + "\n"
 			hisText += "------------------------\n"
-			hisDoc.replaceSelection(hisText, "start")
+			console.log(lastHisText, hisText)
+			if (lastHisText != hisText) {
+				lastHisText = hisText
+				hisDoc.replaceSelection(hisText, "start")
+			}
 		}
 
 		var onFail = function(obj) {
