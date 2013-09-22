@@ -26,14 +26,14 @@
       
       <ul class="nav nav-tabs">
         <!-- tabs -->
-        <li ng-repeat="apilist in apilists"><a href={{"#tab_"+apilist.path}} data-toggle="tab">{{apilist.path}}</a><li>
+        <li ng-repeat="apilist in apilists"><a href={{"#tab_"+apilist.tab}} data-toggle="tab">{{apilist.tab}}</a><li>
       </ul>
 
       <div class="tab-content">
         <div style="height:10px"></div>
 
         <!-- tabs content -->
-        <div class="tab-pane" ng-repeat="apilist in apilists" id={{"tab_"+apilist.path}} style="word-wrap:break-word">
+        <div class="tab-pane" ng-repeat="apilist in apilists" id={{"tab_"+apilist.tab}} style="word-wrap:break-word">
           <a href="" ng-repeat="api in apilist.apis" style="margin-right:20px" ng-click="onApiClick(api, apilist.path)">{{api.name}}</a>
         </div>
       </div>

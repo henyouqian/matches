@@ -1,6 +1,7 @@
 function Controller($scope, $http) {
 	$scope.apilists = [
 		{
+			"tab":"bench",
 			"path":"bench",
 			"apis":[
 				{
@@ -41,6 +42,7 @@ function Controller($scope, $http) {
 			]
 		},
 		{
+			"tab":"auth",
 			"path":"auth",
 			"apis":[
 				{
@@ -71,6 +73,7 @@ function Controller($scope, $http) {
 			] 
 		},
 		{
+			"tab":"game",
 			"path":"game",
 			"apis":[
 				{
@@ -89,6 +92,7 @@ function Controller($scope, $http) {
 			] 
 		},
 		{
+			"tab":"match",
 			"path":"match",
 			"apis":[
 				{
@@ -115,6 +119,7 @@ function Controller($scope, $http) {
 			] 
 		},
 		{
+			"tab":"rank",
 			"path":"rank",
 			"apis":[
 				{
@@ -144,15 +149,13 @@ function Controller($scope, $http) {
 	);
 	historyCodeMirror.setSize("100%", 600)
 
-	$scope.selectedApiPath = ""
 	$scope.currApi = null
 
 	$scope.onApiClick = function(api, path) {
 		if ($scope.currApi != api) {
 			$("#btn-send").removeAttr("disabled")
 			$scope.currApi = api
-			$scope.currApi.path = path
-			$scope.currUrl = $scope.currApi.path+"/"+$scope.currApi.name
+			$scope.currUrl = path+"/"+$scope.currApi.name
 			if (api.data) {
 				sendCodeMirror.doc.setValue(JSON.stringify(api.data, null, '\t'))
 			} else {
@@ -183,6 +186,7 @@ function Controller($scope, $http) {
 			var replyText = JSON.stringify(json, null, '\t')
 			recvCodeMirror.doc.setValue(replyText)
 
+			//history
 			var hisDoc = historyCodeMirror.getDoc()
 			hisDoc.setCursor({line: 0, ch: 0})
 
@@ -191,11 +195,12 @@ function Controller($scope, $http) {
 
 			var hisText = "=> " + $scope.currUrl + "\n" + inputText + "\n<=\n" + replyText + "\n"
 			hisText += "------------------------\n"
-			console.log(lastHisText, hisText)
 			if (lastHisText != hisText) {
 				lastHisText = hisText
 				hisDoc.replaceSelection(hisText, "start")
 			}
+
+			//todo
 		}
 
 		var onFail = function(obj) {
