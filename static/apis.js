@@ -1,6 +1,7 @@
 function Controller($scope, $http) {
 	$scope.apilists = [
 		{
+			"tab":"bench",
 			"path":"bench",
 			"apis":[
 				{
@@ -41,6 +42,7 @@ function Controller($scope, $http) {
 			]
 		},
 		{
+			"tab":"auth",
 			"path":"auth",
 			"apis":[
 				{
@@ -71,6 +73,7 @@ function Controller($scope, $http) {
 			] 
 		},
 		{
+			"tab":"game",
 			"path":"game",
 			"apis":[
 				{
@@ -89,6 +92,7 @@ function Controller($scope, $http) {
 			] 
 		},
 		{
+			"tab":"match",
 			"path":"match",
 			"apis":[
 				{
@@ -115,6 +119,7 @@ function Controller($scope, $http) {
 			] 
 		},
 		{
+			"tab":"rank",
 			"path":"rank",
 			"apis":[
 				{
