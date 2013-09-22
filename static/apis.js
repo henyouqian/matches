@@ -98,7 +98,7 @@ function Controller($scope, $http) {
 				},{
 					"name": "new",
 					"method": "POST",
-					"data": {"Name":"aa", "Gameid":1, "Begin":"2006-01-02 15:04:05", "End":"2014-01-02 15:04:05"}
+					"data": {"Name":"aa", "Gameid":1, "Begin":"2006-01-02 15:04:05", "End":"2014-01-02 15:04:05", "TryNum":1}
 				},{
 					"name": "del",
 					"method": "POST",
@@ -143,30 +143,64 @@ function Controller($scope, $http) {
 		}
 	);
 	historyCodeMirror.setSize("100%", 600)
+	sendCodeMirror.addKeyMap({
+		"Ctrl-,": function(cm) {
+			var hisList = inputHistory[$scope.currUrl]
+			if (isdef(hisList)) {
+				inputHisIdx = Math.max(0, Math.min(hisList.length-1, inputHisIdx-1))
+				sendCodeMirror.doc.setValue(hisList[inputHisIdx])
+			}
+		},
+		"Ctrl-.": function(cm) {
+			var hisList = inputHistory[$scope.currUrl]
+			if (isdef(hisList)) {
+				inputHisIdx = Math.max(0, Math.min(hisList.length-1, inputHisIdx+1))
+				sendCodeMirror.doc.setValue(hisList[inputHisIdx])
+			}
+		},
+		"Esc":function(cm) {
+			var api = $scope.currApi
+			if (api && api.data) {
+				sendCodeMirror.doc.setValue(JSON.stringify(api.data, null, '\t'))
+			} else {
+				sendCodeMirror.doc.setValue("")
+			}
+		}
+	}) 
 
-	$scope.selectedApiPath = ""
+	CodeMirror.signal(sendCodeMirror, "keydown", 2)
+
+	var inputHistory = {}
+	var sendInput = ""
+	var sendUrl=""
+	var inputHisIdx = 0
+
 	$scope.currApi = null
 
 	$scope.onApiClick = function(api, path) {
 		if ($scope.currApi != api) {
 			$("#btn-send").removeAttr("disabled")
 			$scope.currApi = api
-			$scope.currApi.path = path
-			$scope.currUrl = $scope.currApi.path+"/"+$scope.currApi.name
+			$scope.currUrl = path+"/"+$scope.currApi.name
+			inputHisIdx = 0
 			if (api.data) {
-				sendCodeMirror.doc.setValue(JSON.stringify(api.data, null, '\t'))
+				var hisList = inputHistory[$scope.currUrl]
+				if (isdef(hisList)) {
+					inputHisIdx = hisList.length-1
+					sendCodeMirror.doc.setValue(hisList[inputHisIdx])
+				} else {
+					sendCodeMirror.doc.setValue(JSON.stringify(api.data, null, '\t'))
+				}
 			} else {
 				sendCodeMirror.doc.setValue("")
 			}
-			
-			// recvCodeMirror.doc.setValue("")
 		}
+		sendCodeMirror.focus()
 	}
 
 	$scope.queryTick = 0
 	var lastHisText = ""
 	$scope.send = function() {
-		var url = "../"+$scope.currUrl
 		var input = sendCodeMirror.doc.getValue()
 		var inputText = input
 		if (input) {
@@ -183,6 +217,7 @@ function Controller($scope, $http) {
 			var replyText = JSON.stringify(json, null, '\t')
 			recvCodeMirror.doc.setValue(replyText)
 
+			//history
 			var hisDoc = historyCodeMirror.getDoc()
 			hisDoc.setCursor({line: 0, ch: 0})
 
@@ -191,11 +226,22 @@ function Controller($scope, $http) {
 
 			var hisText = "=> " + $scope.currUrl + "\n" + inputText + "\n<=\n" + replyText + "\n"
 			hisText += "------------------------\n"
-			console.log(lastHisText, hisText)
 			if (lastHisText != hisText) {
 				lastHisText = hisText
 				hisDoc.replaceSelection(hisText, "start")
+
+				//input history
+				if (isdef(inputHistory[sendUrl])) {
+					var inHisList = inputHistory[sendUrl]
+					if (inHisList[inHisList.length-1] != sendInput) {
+						inputHistory[sendUrl].push(sendInput)
+					}
+				} else {
+					inputHistory[sendUrl] = [sendInput]
+				}
+				inputHisIdx = inputHistory[sendUrl].length-1
 			}
+			sendCodeMirror.focus()
 		}
 
 		var onFail = function(obj) {
@@ -209,6 +255,10 @@ function Controller($scope, $http) {
 				$scope.queryTick = Math.round(window.performance.now() - t)
 			});
 		}
+
+		sendInput = inputText
+		sendUrl = $scope.currUrl
+		var url = "/"+sendUrl
 		var t = window.performance.now()
 		if ($scope.currApi.method == "GET") {
 			$.getJSON(url, input, onReceive)

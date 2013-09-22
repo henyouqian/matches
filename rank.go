@@ -26,6 +26,9 @@ func getMyRank(w http.ResponseWriter, r *http.Request) {
 	err = lwutil.DecodeRequestBody(r, &in)
 	lwutil.CheckError(err, "err_decode_body")
 
+	//keyFail := makeFailboardKey(in.MatchId)
+	//keyLeaderboard := makeLeaderboardKey(in.MatchId)
+
 	// out
 	lwutil.WriteResponse(w, in)
 }

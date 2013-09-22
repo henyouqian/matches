@@ -17,6 +17,7 @@ type Match struct {
 	Begin  int64
 	End    int64
 	Sort   string
+	TryNum uint32
 }
 
 func newMatch(w http.ResponseWriter, r *http.Request) {
@@ -40,12 +41,16 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 		GameId uint32
 		Begin  string
 		End    string
+		TryNum uint32
 	}
 	err = lwutil.DecodeRequestBody(r, &in)
 	lwutil.CheckError(err, "err_decode_body")
 
 	if in.Name == "" || in.Begin == "" || in.End == "" || in.GameId == 0 {
 		lwutil.SendError("err_input", "Missing Name || Begin || End || Gameid")
+	}
+	if in.TryNum == 0 {
+		in.TryNum = 1
 	}
 
 	// game info
@@ -79,6 +84,7 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 		beginUnix,
 		endUnix,
 		game.Sort,
+		in.TryNum,
 	}
 
 	matchJson, err := json.Marshal(match)
@@ -240,8 +246,8 @@ func startMatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// played?
-	keyFail := fmt.Sprintf("failboard/%d", in.MatchId)
-	keyLeaderboard := fmt.Sprintf("leaderboard/%d", in.MatchId)
+	keyFail := makeFailboardKey(in.MatchId)
+	keyLeaderboard := makeLeaderboardKey(in.MatchId)
 	rc.Send("zscore", keyLeaderboard, session.Userid)
 	rc.Send("sismember", keyFail, session.Userid)
 	rc.Flush()
@@ -298,12 +304,13 @@ func addScore(w http.ResponseWriter, r *http.Request) {
 	if matchIdRaw == nil {
 		lwutil.SendError("err_secret", "")
 	}
-	matchId, err := redis.Int(matchIdRaw, err)
+	matchId64, err := redis.Int64(matchIdRaw, err)
 	lwutil.CheckError(err, "")
+	matchId := uint32(matchId64)
 
 	// del from failboard and add to leaderboard and delete secret
-	keyFail := fmt.Sprintf("failboard/%d", matchId)
-	keyLeaderboard := fmt.Sprintf("leaderboard/%d", matchId)
+	keyFail := makeFailboardKey(matchId)
+	keyLeaderboard := makeLeaderboardKey(matchId)
 	rc.Send("srem", keyFail, session.Userid)
 	rc.Send("zadd", keyLeaderboard, in.Score, session.Userid)
 	rc.Send("del", fmt.Sprintf("trySecrets/%s", in.TrySecret))
@@ -312,6 +319,14 @@ func addScore(w http.ResponseWriter, r *http.Request) {
 
 	// reply
 	lwutil.WriteResponse(w, matchId)
+}
+
+func makeLeaderboardKey(matchId uint32) string {
+	return fmt.Sprintf("leaderboard/%d", matchId)
+}
+
+func makeFailboardKey(matchId uint32) string {
+	return fmt.Sprintf("failboard/%d", matchId)
 }
 
 func regMatch() {
