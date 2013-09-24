@@ -4,20 +4,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/garyburd/redigo/redis"
-	"github.com/golang/glog"
+	//"github.com/golang/glog"
 	"github.com/henyouqian/lwutil"
 	"net/http"
 	"time"
 )
 
 type Match struct {
-	Id     uint32
-	Name   string
-	GameId uint32
-	Begin  int64
-	End    int64
-	Sort   string
-	TryNum uint32
+	Id       uint32
+	Name     string
+	GameId   uint32
+	Begin    int64
+	End      int64
+	Sort     string
+	TryMax   uint32
+	TryPrice uint32
 }
 
 func newMatch(w http.ResponseWriter, r *http.Request) {
@@ -35,13 +36,14 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 		lwutil.SendError("err_auth", "Please login with app secret")
 	}
 
-	// input
+	//input
 	var in struct {
-		Name   string
-		GameId uint32
-		Begin  string
-		End    string
-		TryNum uint32
+		Name     string
+		GameId   uint32
+		Begin    string
+		End      string
+		TryMax   uint32
+		TryPrice uint32
 	}
 	err = lwutil.DecodeRequestBody(r, &in)
 	lwutil.CheckError(err, "err_decode_body")
@@ -49,15 +51,15 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 	if in.Name == "" || in.Begin == "" || in.End == "" || in.GameId == 0 {
 		lwutil.SendError("err_input", "Missing Name || Begin || End || Gameid")
 	}
-	if in.TryNum == 0 {
-		in.TryNum = 1
+	if in.TryMax == 0 {
+		in.TryMax = 1
 	}
 
-	// game info
+	//game info
 	game, err := findGame(in.GameId, appid)
 	lwutil.CheckError(err, "err_game")
 
-	// times
+	//times
 	const timeform = "2006-01-02 15:04:05"
 	begin, err := time.ParseInLocation(timeform, in.Begin, time.Local)
 	lwutil.CheckError(err, "")
@@ -84,7 +86,8 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 		beginUnix,
 		endUnix,
 		game.Sort,
-		in.TryNum,
+		in.TryMax,
+		in.TryPrice,
 	}
 
 	matchJson, err := json.Marshal(match)
@@ -100,7 +103,7 @@ func newMatch(w http.ResponseWriter, r *http.Request) {
 		lwutil.CheckError(err, "")
 	}
 
-	// reply
+	//reply
 	lwutil.WriteResponse(w, match)
 }
 
@@ -119,12 +122,12 @@ func delMatch(w http.ResponseWriter, r *http.Request) {
 		lwutil.SendError("err_auth", "Please login with app secret")
 	}
 
-	// input
+	//input
 	matchIds := make([]int, 0, 8)
 	err = lwutil.DecodeRequestBody(r, &matchIds)
 	lwutil.CheckError(err, "err_decode_body")
 
-	// redis
+	//redis
 	key := fmt.Sprintf("matchesInApp/%d", appid)
 	params := make([]interface{}, 0, 8)
 	params = append(params, key)
@@ -149,7 +152,7 @@ func delMatch(w http.ResponseWriter, r *http.Request) {
 	delNum, err := rc.Receive()
 	lwutil.CheckError(err, "")
 
-	// reply
+	//reply
 	lwutil.WriteResponse(w, delNum)
 }
 
@@ -169,7 +172,7 @@ func listMatch(w http.ResponseWriter, r *http.Request) {
 
 	nowUnix := time.Now().Unix()
 
-	// get matchIds
+	//get matchIds
 	key := fmt.Sprintf("matchesInApp/%d", appid)
 	matchIdValues, err := redis.Values(rc.Do("zrangebyscore", key, nowUnix, "+inf"))
 	lwutil.CheckError(err, "")
@@ -184,19 +187,61 @@ func listMatch(w http.ResponseWriter, r *http.Request) {
 		args[i+1] = matchkey
 	}
 
-	// get match data
+	//get match data
 	matchesValues, err := redis.Values(rc.Do("hmget", args...))
 
-	matches := make([]interface{}, len(matchesValues))
+	matches := make([]Match, len(matchesValues))
 
 	for i, v := range matchesValues {
-		var match interface{}
+		var match Match
 		err = json.Unmarshal(v.([]byte), &match)
 		lwutil.CheckError(err, "")
 		matches[i] = match
 	}
 
-	lwutil.WriteResponse(w, matches)
+	//out
+	type OutMatch struct {
+		Id       uint32
+		Name     string
+		GameId   uint32
+		Begin    int64
+		End      int64
+		Sort     string
+		TryMax   uint32
+		TryPrice uint32
+		TryNum   uint32
+	}
+
+	outMatches := make([]OutMatch, len(matches))
+
+	// get try number
+	for _, match := range matches {
+		tryNumKey := makeTryNumKey(match.Id)
+		rc.Send("hget", tryNumKey, session.Userid)
+	}
+	err = rc.Flush()
+	lwutil.CheckError(err, "")
+
+	for i, match := range matches {
+		tryNum, err := redis.Int(rc.Receive())
+		if err != nil && err != redis.ErrNil {
+			lwutil.CheckError(err, "")
+		}
+
+		outMatches[i] = OutMatch{
+			Id:       match.Id,
+			Name:     match.Name,
+			GameId:   match.GameId,
+			Begin:    match.Begin,
+			End:      match.End,
+			Sort:     match.Sort,
+			TryMax:   match.TryMax,
+			TryPrice: match.TryPrice,
+			TryNum:   uint32(tryNum),
+		}
+	}
+
+	lwutil.WriteResponse(w, outMatches)
 }
 
 func startMatch(w http.ResponseWriter, r *http.Request) {
@@ -213,24 +258,14 @@ func startMatch(w http.ResponseWriter, r *http.Request) {
 		lwutil.SendError("err_auth", "Please login with app secret")
 	}
 
-	// input
+	//input
 	var in struct {
 		MatchId uint32
 	}
 	err = lwutil.DecodeRequestBody(r, &in)
 	lwutil.CheckError(err, "err_decode_body")
 
-	// playing?
-	secretRaw, err := rc.Do("get", fmt.Sprintf("trySecretsRev/%d", in.MatchId))
-	lwutil.CheckError(err, "")
-	if secretRaw != nil {
-		secret, err := redis.String(secretRaw, err)
-		lwutil.CheckError(err, "")
-		lwutil.WriteResponse(w, secret)
-		return
-	}
-
-	// get match info
+	//get match info
 	key := fmt.Sprintf("%d+%d", appid, in.MatchId)
 	matchJson, err := redis.Bytes(rc.Do("hget", "matches", key))
 	lwutil.CheckError(err, "err_not_found")
@@ -239,41 +274,36 @@ func startMatch(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(matchJson, &match)
 	lwutil.CheckError(err, "")
 
-	// check time
+	//check time
 	now := time.Now().Unix()
 	if now < match.Begin || now >= match.End-MATCH_TRY_DURATION_SEC {
 		lwutil.SendError("err_time", "now < match.Begin || now >= match.End-MATCH_TRY_DURATION_SEC")
 	}
 
-	// played?
-	keyFail := makeFailboardKey(in.MatchId)
-	keyLeaderboard := makeLeaderboardKey(in.MatchId)
-	rc.Send("zscore", keyLeaderboard, session.Userid)
-	rc.Send("sismember", keyFail, session.Userid)
-	rc.Flush()
-	lbScore, err := rc.Receive()
-	lwutil.CheckError(err, "")
-	inFail, err := redis.Int(rc.Receive())
-	lwutil.CheckError(err, "")
-
-	glog.Infoln(lbScore, inFail)
-	if lbScore != nil || inFail != 0 {
+	//incr and check try number
+	tryNumKey := makeTryNumKey(in.MatchId)
+	tryNum, err := redis.Int(rc.Do("hget", tryNumKey, session.Userid))
+	if err != nil && err != redis.ErrNil {
+		lwutil.CheckError(err, "")
+	}
+	if uint32(tryNum) >= match.TryMax {
 		lwutil.SendError("err_no_try", "no try left")
 	}
-
-	// add to failboard
-	_, err = rc.Do("sadd", keyFail, session.Userid)
+	_, err = rc.Do("hincrby", tryNumKey, session.Userid, 1)
 	lwutil.CheckError(err, "")
+	tryNum++
 
-	// new try secret
+	//new try secret
 	trySecret := lwutil.GenUUID()
-	rc.Send("setex", fmt.Sprintf("trySecrets/%s", trySecret), MATCH_TRY_DURATION_SEC, in.MatchId)
-	rc.Send("setex", fmt.Sprintf("trySecretsRev/%d", in.MatchId), MATCH_TRY_DURATION_SEC, trySecret)
-	err = rc.Flush()
+	_, err = rc.Do("setex", fmt.Sprintf("trySecrets/%s", trySecret), MATCH_TRY_DURATION_SEC, in.MatchId)
 	lwutil.CheckError(err, "")
 
-	// reply
-	lwutil.WriteResponse(w, trySecret)
+	//out
+	out := struct {
+		Secret string
+		TryNum uint32
+	}{trySecret, uint32(tryNum)}
+	lwutil.WriteResponse(w, out)
 }
 
 func addScore(w http.ResponseWriter, r *http.Request) {
@@ -290,7 +320,7 @@ func addScore(w http.ResponseWriter, r *http.Request) {
 	//	lwutil.SendError("err_auth", "Please login with app secret")
 	//}
 
-	// input
+	//input
 	var in struct {
 		TrySecret string
 		Score     int64
@@ -298,7 +328,7 @@ func addScore(w http.ResponseWriter, r *http.Request) {
 	err = lwutil.DecodeRequestBody(r, &in)
 	lwutil.CheckError(err, "err_decode_body")
 
-	// use secret to get matchId
+	//use secret to get matchId
 	matchIdRaw, err := rc.Do("get", fmt.Sprintf("trySecrets/%s", in.TrySecret))
 	lwutil.CheckError(err, "")
 	if matchIdRaw == nil {
@@ -308,16 +338,14 @@ func addScore(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckError(err, "")
 	matchId := uint32(matchId64)
 
-	// del from failboard and add to leaderboard and delete secret
-	keyFail := makeFailboardKey(matchId)
+	//del from failboard and add to leaderboard and delete secret
 	keyLeaderboard := makeLeaderboardKey(matchId)
-	rc.Send("srem", keyFail, session.Userid)
 	rc.Send("zadd", keyLeaderboard, in.Score, session.Userid)
 	rc.Send("del", fmt.Sprintf("trySecrets/%s", in.TrySecret))
 	err = rc.Flush()
 	lwutil.CheckError(err, "")
 
-	// reply
+	//reply
 	lwutil.WriteResponse(w, matchId)
 }
 
@@ -325,8 +353,8 @@ func makeLeaderboardKey(matchId uint32) string {
 	return fmt.Sprintf("leaderboard/%d", matchId)
 }
 
-func makeFailboardKey(matchId uint32) string {
-	return fmt.Sprintf("failboard/%d", matchId)
+func makeTryNumKey(matchId uint32) string {
+	return fmt.Sprintf("trynum/%d", matchId)
 }
 
 func regMatch() {
@@ -336,3 +364,13 @@ func regMatch() {
 	http.Handle("/match/start", lwutil.ReqHandler(startMatch))
 	http.Handle("/match/addscore", lwutil.ReqHandler(addScore))
 }
+
+/*
+matches: String{match Match.json}
+matchesInApp: SortedSet{score: matchEndTimeUnix, member: matchId}
+trySecrets/<trySecret>: String(matchId int)
+trynum/<matchId int>: Hash{field: userId int, value: tryNum int}
+leaderboard/<matchId int>: SortedSet{score: matchScore int, member: userId int}
+
+
+*/

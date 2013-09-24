@@ -102,7 +102,7 @@ function Controller($scope, $http) {
 				},{
 					"name": "new",
 					"method": "POST",
-					"data": {"Name":"aa", "Gameid":1, "Begin":"2006-01-02 15:04:05", "End":"2014-01-02 15:04:05", "TryNum":1}
+					"data": {"Name":"aa", "Gameid":1, "Begin":"2006-01-02 15:04:05", "End":"2014-01-02 15:04:05", "TryMax":1, "TryPrice":10}
 				},{
 					"name": "del",
 					"method": "POST",
