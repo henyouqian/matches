@@ -265,8 +265,10 @@ function Controller($scope, $http) {
 		var onFail = function(obj) {
 			printQueryTick()
 			var t = JSON.stringify(obj.responseJSON, null, '\t')
-			t = t.replace(/\\n/g, "\n")
-			t = t.replace(/\\t/g, " ")
+			if (isdef(t))
+				t = t.replace(/\\n/g, "\n")
+			if (isdef(t))
+				t = t.replace(/\\t/g, "  ")
 			var text = obj.status + ":" + obj.statusText + "\n\n" + t
 			recvCodeMirror.doc.setValue(text)
 		}
