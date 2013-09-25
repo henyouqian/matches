@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/garyburd/redigo/redis"
 	"github.com/henyouqian/lwutil"
 	"net/http"
 )
@@ -26,11 +27,29 @@ func getMyRank(w http.ResponseWriter, r *http.Request) {
 	err = lwutil.DecodeRequestBody(r, &in)
 	lwutil.CheckError(err, "err_decode_body")
 
-	//keyFail := makeFailboardKey(in.MatchId)
-	//keyLeaderboard := makeLeaderboardKey(in.MatchId)
+	keyLeaderboard := makeLeaderboardKey(in.MatchId)
+	rc.Send("zrank", keyLeaderboard, session.Userid)
+	rc.Send("zscore", keyLeaderboard, session.Userid)
+	rc.Flush()
+	rank, err := redis.Int64(rc.Receive())
+	score := int64(0)
+	if err == redis.ErrNil {
+		rank = 0
+	} else {
+		lwutil.CheckError(err, "")
+		if err == nil {
+			rank += 1
+		}
+		score, err = redis.Int64(rc.Receive())
+		lwutil.CheckError(err, "")
+	}
 
 	// out
-	lwutil.WriteResponse(w, in)
+	out := struct {
+		Rank  int64
+		Score int64
+	}{rank, score}
+	lwutil.WriteResponse(w, out)
 }
 
 func regRank() {

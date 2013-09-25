@@ -59,7 +59,7 @@ func newGame(w http.ResponseWriter, r *http.Request) {
 	if input.Id == 0 || input.Name == "" {
 		lwutil.SendError("err_input", "Missing Id or Name")
 	}
-	if input.Sort != "ASC" && input.Sort != "DESC" {
+	if input.Sort != SORT_ASC && input.Sort != SORT_DESC {
 		lwutil.SendError("err_input", "Invalid Sort, must be ASC or DESC")
 	}
 

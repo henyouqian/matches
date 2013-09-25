@@ -315,10 +315,10 @@ func addScore(w http.ResponseWriter, r *http.Request) {
 	session, err := findSession(w, r, rc)
 	lwutil.CheckError(err, "err_auth")
 
-	//appid := session.Appid
-	//if appid == 0 {
-	//	lwutil.SendError("err_auth", "Please login with app secret")
-	//}
+	appid := session.Appid
+	if appid == 0 {
+		lwutil.SendError("err_auth", "Please login with app secret")
+	}
 
 	//input
 	var in struct {
@@ -338,15 +338,58 @@ func addScore(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckError(err, "")
 	matchId := uint32(matchId64)
 
-	//del from failboard and add to leaderboard and delete secret
+	//get match info and prev score
 	keyLeaderboard := makeLeaderboardKey(matchId)
-	rc.Send("zadd", keyLeaderboard, in.Score, session.Userid)
+	matchKey := fmt.Sprintf("%d+%d", appid, matchId)
+	rc.Send("hget", "matches", matchKey)
+	rc.Send("zscore", keyLeaderboard, session.Userid)
+	rc.Flush()
+	matchJs, err := redis.Bytes(rc.Receive())
+	lwutil.CheckError(err, "")
+
+	var match Match
+	err = json.Unmarshal(matchJs, &match)
+	lwutil.CheckError(err, "")
+
+	prevScore, err := redis.Int64(rc.Receive())
+	needOverwrite := false
+	if err == redis.ErrNil {
+		needOverwrite = true
+	} else {
+		lwutil.CheckError(err, "")
+		if match.Sort == SORT_ASC {
+			if in.Score < prevScore {
+				needOverwrite = true
+			}
+		} else if match.Sort == SORT_DESC {
+			if in.Score > prevScore {
+				needOverwrite = true
+			}
+		} else {
+			lwutil.SendError("", "invalid match.Sort: "+match.Sort)
+		}
+	}
+
+	//del from failboard and add to leaderboard and delete secret
+	if needOverwrite {
+		rc.Send("zadd", keyLeaderboard, in.Score, session.Userid)
+	}
+	rc.Send("zrank", keyLeaderboard, session.Userid)
 	rc.Send("del", fmt.Sprintf("trySecrets/%s", in.TrySecret))
+
 	err = rc.Flush()
 	lwutil.CheckError(err, "")
 
+	if needOverwrite {
+		_, err := rc.Receive()
+		lwutil.CheckError(err, "")
+	}
+	rank, err := redis.Int(rc.Receive())
+	lwutil.CheckError(err, "")
+	rank++
+
 	//reply
-	lwutil.WriteResponse(w, matchId)
+	lwutil.WriteResponse(w, rank)
 }
 
 func makeLeaderboardKey(matchId uint32) string {
@@ -366,11 +409,9 @@ func regMatch() {
 }
 
 /*
-matches: String{match Match.json}
+matches: Hash{field: [appid+matchId] int, value: match Match.json}
 matchesInApp: SortedSet{score: matchEndTimeUnix, member: matchId}
 trySecrets/<trySecret>: String(matchId int)
 trynum/<matchId int>: Hash{field: userId int, value: tryNum int}
 leaderboard/<matchId int>: SortedSet{score: matchScore int, member: userId int}
-
-
 */
