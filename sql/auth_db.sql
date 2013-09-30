@@ -7,7 +7,7 @@
 #
 # Host: 127.0.0.1 (MySQL 5.6.10)
 # Database: auth_db
-# Generation Time: 2013-08-27 05:59:29 +0000
+# Generation Time: 2013-09-30 17:36:41 +0000
 # ************************************************************
 
 
@@ -45,6 +45,8 @@ CREATE TABLE `user_accounts` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `username` varchar(40) NOT NULL DEFAULT '',
   `password` varchar(40) NOT NULL DEFAULT '',
+  `countryCode` smallint(5) unsigned DEFAULT '0',
+  `signCode` smallint(5) unsigned DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

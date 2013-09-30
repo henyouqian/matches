@@ -17,7 +17,7 @@ func main() {
 	flag.IntVar(&port, "port", 9999, "server port")
 	flag.Parse()
 
-	http.HandleFunc("/static/", staticFile)
+	http.HandleFunc("/www/", staticFile)
 
 	regAuth()
 	regGame()

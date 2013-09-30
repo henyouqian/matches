@@ -54,6 +54,10 @@ function Controller($scope, $http) {
 					"method": "POST",
 					"data": ""
 				},{
+					"name": "setinfo",
+					"method": "POST",
+					"data": {"Username":"aa", "CountryCode":12, "SignCode":5}
+				},{
 					"name": "info",
 					"method": "POST",
 					"data": ""

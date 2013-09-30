@@ -25,9 +25,10 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 	pwsha := lwutil.Sha224(in.Password + passwordSalt)
 
 	// get userid
-	row := authDB.QueryRow("SELECT id FROM user_accounts WHERE username=? AND password=?", in.Username, pwsha)
+	row := authDB.QueryRow("SELECT id, countryCode, signCode FROM user_accounts WHERE username=? AND password=?", in.Username, pwsha)
 	var userid uint64
-	err := row.Scan(&userid)
+	var countryCode, signCode uint32
+	err := row.Scan(&userid, &countryCode, &signCode)
 	lwutil.CheckError(err, "")
 
 	// get appid
@@ -42,7 +43,7 @@ func benchLogin(w http.ResponseWriter, r *http.Request) {
 	rc := redisPool.Get()
 	defer rc.Close()
 
-	usertoken, err := newSession(w, userid, in.Username, appid, rc)
+	usertoken, err := newSession(w, userid, in.Username, appid, 0, 0, rc)
 	lwutil.CheckError(err, "")
 
 	// reply

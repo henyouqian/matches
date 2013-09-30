@@ -14,13 +14,15 @@ const sessionLifeSecond = 60 * 60 * 24 * 7
 const sessionUpdateSecond = 60 * 60
 
 type Session struct {
-	Userid   uint64
-	Username string
-	Born     time.Time
-	Appid    uint32
+	Userid      uint64
+	Username    string
+	Born        time.Time
+	Appid       uint32
+	CountryCode uint32
+	SignCode    uint32
 }
 
-func newSession(w http.ResponseWriter, userid uint64, username string, appid uint32, rc redis.Conn) (usertoken string, err error) {
+func newSession(w http.ResponseWriter, userid uint64, username string, appid uint32, countryCode uint32, signCode uint32, rc redis.Conn) (usertoken string, err error) {
 	if rc == nil {
 		rc = redisPool.Get()
 		defer rc.Close()
@@ -37,7 +39,7 @@ func newSession(w http.ResponseWriter, userid uint64, username string, appid uin
 
 	usertoken = lwutil.GenUUID()
 
-	session := Session{userid, username, time.Now(), appid}
+	session := Session{userid, username, time.Now(), appid, countryCode, signCode}
 	jsonSession, err := json.Marshal(session)
 	if err != nil {
 		return usertoken, lwutil.NewErr(err)
@@ -90,35 +92,35 @@ func findSession(w http.ResponseWriter, r *http.Request, rc redis.Conn) (*Sessio
 	//update session
 	dt := time.Now().Sub(session.Born)
 	if dt > sessionUpdateSecond*time.Second {
-		newSession(w, session.Userid, session.Username, session.Appid, rc)
+		newSession(w, session.Userid, session.Username, session.Appid, session.CountryCode, session.SignCode, rc)
 	}
 
 	return session, nil
 }
 
-func register(w http.ResponseWriter, r *http.Request) {
+func authRegister(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
-	// input
-	var input struct {
-		Username string
-		Password string
+	// in
+	var in struct {
+		Username    string
+		Password    string
+		CountryCode uint32
+		SignCode    uint32
 	}
 
-	err := lwutil.DecodeRequestBody(r, &input)
+	err := lwutil.DecodeRequestBody(r, &in)
 	lwutil.CheckError(err, "err_decode_body")
 
-	if input.Username == "" || input.Password == "" {
+	if in.Username == "" || in.Password == "" {
 		lwutil.SendError("err_input", "")
 	}
 
-	pwsha := lwutil.Sha224(input.Password + passwordSalt)
+	pwsha := lwutil.Sha224(in.Password + passwordSalt)
 
 	// insert into db
-	stmt, err := authDB.Prepare("INSERT INTO user_accounts (username, password) VALUES (?, ?)")
-	lwutil.CheckError(err, "")
-
-	res, err := stmt.Exec(input.Username, pwsha)
+	res, err := authDB.Exec("INSERT INTO user_accounts (username, password, countryCode, signCode) VALUES (?, ?, ?, ?)",
+		in.Username, pwsha, in.CountryCode, in.SignCode)
 	lwutil.CheckError(err, "err_account_exists")
 
 	id, err := res.LastInsertId()
@@ -131,7 +133,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 	lwutil.WriteResponse(w, reply)
 }
 
-func login(w http.ResponseWriter, r *http.Request) {
+func authLogin(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
 	// input
@@ -150,9 +152,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 	pwsha := lwutil.Sha224(input.Password + passwordSalt)
 
 	// get userid
-	row := authDB.QueryRow("SELECT id FROM user_accounts WHERE username=? AND password=?", input.Username, pwsha)
+	row := authDB.QueryRow("SELECT id, countryCode, signCode FROM user_accounts WHERE username=? AND password=?", input.Username, pwsha)
 	var userid uint64
-	err = row.Scan(&userid)
+	var countryCode uint32
+	var signCode uint32
+	err = row.Scan(&userid, &countryCode, &signCode)
 	lwutil.CheckError(err, "err_not_match")
 
 	// get appid
@@ -167,14 +171,14 @@ func login(w http.ResponseWriter, r *http.Request) {
 	rc := redisPool.Get()
 	defer rc.Close()
 
-	usertoken, err := newSession(w, userid, input.Username, appid, rc)
+	usertoken, err := newSession(w, userid, input.Username, appid, countryCode, signCode, rc)
 	lwutil.CheckError(err, "")
 
 	// reply
 	lwutil.WriteResponse(w, usertoken)
 }
 
-func logout(w http.ResponseWriter, r *http.Request) {
+func authLogout(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
 	rc := redisPool.Get()
@@ -199,7 +203,7 @@ func logout(w http.ResponseWriter, r *http.Request) {
 	lwutil.WriteResponse(w, "logout")
 }
 
-func newApp(w http.ResponseWriter, r *http.Request) {
+func authNewApp(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r, nil)
@@ -233,7 +237,7 @@ func newApp(w http.ResponseWriter, r *http.Request) {
 	lwutil.WriteResponse(w, reply)
 }
 
-func listApp(w http.ResponseWriter, r *http.Request) {
+func authListApp(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r, nil)
@@ -260,7 +264,7 @@ func listApp(w http.ResponseWriter, r *http.Request) {
 	lwutil.WriteResponse(w, apps)
 }
 
-func loginInfo(w http.ResponseWriter, r *http.Request) {
+func authLoginInfo(w http.ResponseWriter, r *http.Request) {
 	lwutil.CheckMathod(r, "POST")
 
 	session, err := findSession(w, r, nil)
@@ -279,11 +283,43 @@ func loginInfo(w http.ResponseWriter, r *http.Request) {
 	lwutil.WriteResponse(w, reply)
 }
 
+func authSetInfo(w http.ResponseWriter, r *http.Request) {
+	lwutil.CheckMathod(r, "POST")
+
+	session, err := findSession(w, r, nil)
+	lwutil.CheckError(err, "err_auth")
+
+	// in
+	var in struct {
+		CountryCode uint32
+		SignCode    uint32
+	}
+
+	err = lwutil.DecodeRequestBody(r, &in)
+	lwutil.CheckError(err, "err_decode_body")
+
+	if in.CountryCode == 0 || in.SignCode == 0 {
+		lwutil.SendError("err_input", "")
+	}
+
+	// insert into db
+	_, err = authDB.Exec("UPDATE user_accounts SET countryCode=?, signCode=? WHERE id=?",
+		in.CountryCode, in.SignCode, session.Userid)
+	lwutil.CheckError(err, "")
+
+	//new session
+	newSession(w, session.Userid, session.Username, session.Appid, in.CountryCode, in.SignCode, nil)
+
+	// out
+	lwutil.WriteResponse(w, in)
+}
+
 func regAuth() {
-	http.Handle("/auth/login", lwutil.ReqHandler(login))
-	http.Handle("/auth/logout", lwutil.ReqHandler(logout))
-	http.Handle("/auth/register", lwutil.ReqHandler(register))
-	http.Handle("/auth/newapp", lwutil.ReqHandler(newApp))
-	http.Handle("/auth/listapp", lwutil.ReqHandler(listApp))
-	http.Handle("/auth/info", lwutil.ReqHandler(loginInfo))
+	http.Handle("/auth/login", lwutil.ReqHandler(authLogin))
+	http.Handle("/auth/logout", lwutil.ReqHandler(authLogout))
+	http.Handle("/auth/register", lwutil.ReqHandler(authRegister))
+	http.Handle("/auth/newapp", lwutil.ReqHandler(authNewApp))
+	http.Handle("/auth/listapp", lwutil.ReqHandler(authListApp))
+	http.Handle("/auth/setinfo", lwutil.ReqHandler(authSetInfo))
+	http.Handle("/auth/info", lwutil.ReqHandler(authLoginInfo))
 }
